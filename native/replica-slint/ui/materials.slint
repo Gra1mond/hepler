@@ -1,0 +1,328 @@
+import { ScrollView } from "std-widgets.slint";
+import { ProfileAction, ProfileColors } from "profile.slint";
+
+export struct MaterialQuestion { text: string, topic: string }
+
+component QuestionActions inherits HorizontalLayout {
+    callback import-selected();
+    callback add-selected();
+    horizontal-stretch: 0;
+    spacing: 8px;
+    ProfileAction {
+        label: "Импорт списка";
+        leading-icon: @image-url("assets/profile/upload.svg");
+        icon-color: ProfileColors.amber; show-leading: true;
+        activated => { root.import-selected(); }
+    }
+    ProfileAction {
+        label: "Добавить вопрос"; variant: "primary";
+        leading-icon: @image-url("assets/profile/plus.svg"); show-leading: true;
+        activated => { root.add-selected(); }
+    }
+}
+
+export component MaterialsPage inherits Rectangle {
+    in property <bool> in-profile;
+    in property <string> resume-name;
+    in property <bool> resume-has-text;
+    in property <string> issue;
+    in property <[MaterialQuestion]> questions;
+    callback navigate(string);
+    callback upload-resume();
+    callback remove-resume();
+    callback import-questions();
+    callback open-editor(int);
+
+    property <bool> show-resume-actions;
+    preferred-height: body.preferred-height;
+
+    body := VerticalLayout {
+        Text {
+            text: "Материалы";
+            color: ProfileColors.text;
+            font-size: root.in-profile ? 24px : 36px;
+            font-weight: root.in-profile ? 600 : 700;
+        }
+        Rectangle { height: 12px; }
+        Text {
+            text: "Резюме и вопросы, которые агент может учитывать в ответах.";
+            color: ProfileColors.muted;
+            font-size: 15px;
+            wrap: word-wrap;
+        }
+        if root.issue != "": Text {
+            text: root.issue;
+            color: #fca5a5;
+            font-size: 14px;
+            wrap: word-wrap;
+        }
+        Rectangle { height: 40px; }
+        VerticalLayout {
+            spacing: 12px;
+            HorizontalLayout {
+                alignment: space-between;
+                spacing: 12px;
+                Text {
+                    text: "Резюме"; color: ProfileColors.text; font-size: 22px; font-weight: 600;
+                    vertical-alignment: center;
+                }
+                ProfileAction {
+                    label: "Загрузить резюме";
+                    leading-icon: @image-url("assets/profile/upload.svg");
+                    icon-color: ProfileColors.amber; show-leading: true;
+                    activated => { root.upload-resume(); }
+                }
+            }
+            Rectangle { height: 4px; }
+            Rectangle { height: 1px; background: ProfileColors.border; }
+            if root.resume-name == "": Text {
+                text: "Резюме пока не добавлено.";
+                color: ProfileColors.muted;
+                font-size: 14px;
+            }
+            if root.resume-name != "": Rectangle {
+                min-height: resume-row.preferred-height;
+                border-radius: 12px;
+                background: #171717;
+                resume-row := HorizontalLayout {
+                    padding: 12px;
+                    spacing: 12px;
+                    Rectangle {
+                        width: 40px;
+                        height: 40px;
+                        border-radius: 8px;
+                        background: #fbbf2414;
+                        Image {
+                            source: @image-url("assets/profile/file.svg");
+                            width: 17px;
+                            height: 17px;
+                            colorize: ProfileColors.amber;
+                        }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text {
+                            text: root.resume-name; color: ProfileColors.text; font-size: 14px; font-weight: 600;
+                            wrap: char-wrap;
+                        }
+                        Text {
+                            text: root.resume-has-text ? "Доступно для контекста" : "PDF · в демо отображается имя файла";
+                            color: ProfileColors.muted;
+                            font-size: 12px;
+                            wrap: word-wrap;
+                        }
+                    }
+                    ProfileAction {
+                        accessibility-label: "Действия с резюме";
+                        leading-icon: @image-url("assets/profile/more.svg");
+                        show-leading: true;
+                        activated => { root.show-resume-actions = !root.show-resume-actions; }
+                    }
+                    if root.show-resume-actions: ProfileAction {
+                        label: "Убрать резюме";
+                        activated => { root.remove-resume(); root.show-resume-actions = false; }
+                    }
+                }
+            }
+        }
+        Rectangle { height: 48px; }
+        question-section := VerticalLayout {
+            spacing: 0px;
+            question-header := VerticalLayout {
+                spacing: 9px;
+                if root.width >= 580px: HorizontalLayout {
+                    alignment: space-between;
+                    spacing: 12px;
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text { text: "Подготовленные вопросы"; color: ProfileColors.text; font-size: 22px; font-weight: 600; }
+                        Text { text: "Вопросов: " + root.questions.length; color: ProfileColors.muted; font-size: 12px; }
+                    }
+                    QuestionActions {
+                        import-selected => { root.import-questions(); }
+                        add-selected => { root.open-editor(-1); }
+                    }
+                }
+                if root.width < 580px: VerticalLayout {
+                    spacing: 6px;
+                    Text { text: "Подготовленные вопросы"; color: ProfileColors.text; font-size: 22px; font-weight: 600; wrap: word-wrap; }
+                    Text { text: "Вопросов: " + root.questions.length; color: ProfileColors.muted; font-size: 12px; }
+                    HorizontalLayout {
+                        alignment: start;
+                        QuestionActions {
+                            import-selected => { root.import-questions(); }
+                            add-selected => { root.open-editor(-1); }
+                        }
+                    }
+                }
+            }
+            Rectangle { height: 16px; }
+            Rectangle { height: 1px; background: ProfileColors.border; }
+            for question[index] in root.questions: VerticalLayout {
+                HorizontalLayout {
+                    padding-top: 12px;
+                    padding-bottom: 12px;
+                    spacing: 12px;
+                    Image {
+                        y: (parent.height - self.height) / 2;
+                        source: @image-url("assets/profile/message.svg");
+                        colorize: ProfileColors.muted;
+                        width: 14px;
+                        height: 14px;
+                    }
+                    Text {
+                        text: question.text;
+                        color: ProfileColors.text;
+                        font-size: 14px;
+                        font-weight: 500;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                        wrap: word-wrap;
+                    }
+                    if root.width >= 480px: Text {
+                        text: question.topic;
+                        color: ProfileColors.muted;
+                        font-size: 12px;
+                        width: 144px;
+                        vertical-alignment: center;
+                        wrap: char-wrap;
+                    }
+                    ProfileAction {
+                        button-height: 36px;
+                        width: 37px;
+                        accessibility-label: "Редактировать вопрос " + (index + 1);
+                        leading-icon: @image-url("assets/profile/more.svg");
+                        show-leading: true;
+                        activated => { root.open-editor(index); }
+                    }
+                }
+                Rectangle { height: 1px; background: ProfileColors.border; }
+            }
+        }
+    }
+}
+
+export component MaterialEditor inherits FocusScope {
+    in property <int> index: -1;
+    in property <string> initial-text;
+    in property <string> initial-topic;
+    callback save(int, string, string);
+    callback remove(int);
+    callback dismiss();
+
+    private property <string> question-draft: root.initial-text;
+    private property <string> topic-draft: root.initial-topic;
+    forward-focus: question-input;
+    init => { question-input.focus(); }
+
+    key-pressed(event) => {
+        if event.text == Key.Escape {
+            root.dismiss();
+            return accept;
+        }
+        return reject;
+    }
+
+    Rectangle {
+        background: #000000b3;
+        TouchArea {}
+    }
+
+    Rectangle {
+        x: (root.width - self.width) / 2;
+        y: (root.height - self.height) / 2;
+        width: min(482px, max(0px, root.width - 32px));
+        height: min(editor-body.preferred-height, max(0px, root.height - 32px));
+        border-width: 1px;
+        border-color: #404040;
+        border-radius: 18px;
+        background: #171717;
+        drop-shadow-color: #00000080;
+        drop-shadow-offset-y: 10px;
+        drop-shadow-blur: 24px;
+        clip: true;
+
+        TouchArea {}
+        scroll := ScrollView {
+            horizontal-scrollbar-policy: always-off;
+            viewport-width: self.visible-width;
+            viewport-height: editor-body.preferred-height;
+            editor-body := VerticalLayout {
+                x: 0px;
+                y: 0px;
+                width: scroll.visible-width;
+                height: self.preferred-height;
+                padding: root.width >= 600px ? 24px : 20px;
+                spacing: 16px;
+                Text {
+                    text: root.index < 0 ? "Новый вопрос" : "Редактировать вопрос";
+                    color: ProfileColors.text; font-size: 24px; font-weight: 600; wrap: word-wrap;
+                }
+                VerticalLayout {
+                    spacing: 4px;
+                    Text { text: "Вопрос"; color: ProfileColors.text; font-size: 14px; }
+                    Rectangle {
+                        height: 70px;
+                        clip: true;
+                        border-radius: 8px;
+                        border-width: question-input.has-focus ? 2px : 1px;
+                        border-color: question-input.has-focus ? ProfileColors.amber : #525252;
+                        background: #171717;
+                        question-input := TextInput {
+                            x: 12px; y: 9px;
+                            width: max(1px, parent.width - 24px); height: parent.height - 18px;
+                            text <=> root.question-draft;
+                            single-line: false; wrap: word-wrap;
+                            font-size: 14px; color: ProfileColors.text;
+                            selection-background-color: #fbbf2466;
+                            accessible-label: "Вопрос";
+                        }
+                    }
+                }
+                VerticalLayout {
+                    spacing: 4px;
+                    Text { text: "Тема"; color: ProfileColors.text; font-size: 14px; }
+                    Rectangle {
+                        height: 39px;
+                        clip: true;
+                        border-radius: 8px;
+                        border-width: topic-input.has-focus ? 2px : 1px;
+                        border-color: topic-input.has-focus ? ProfileColors.amber : #525252;
+                        background: #171717;
+                        topic-input := TextInput {
+                            x: 12px; y: 8px;
+                            width: max(1px, parent.width - 24px); height: parent.height - 16px;
+                            text <=> root.topic-draft;
+                            single-line: true; vertical-alignment: center;
+                            font-size: 14px; color: ProfileColors.text;
+                            selection-background-color: #fbbf2466;
+                            accessible-label: "Тема";
+                        }
+                    }
+                }
+                Rectangle { height: 1px; background: #404040; }
+                HorizontalLayout {
+                    spacing: 8px;
+                    if root.index >= 0: ProfileAction {
+                        label: "Удалить"; variant: "ghost";
+                        activated => { root.remove(root.index); }
+                    }
+                    Rectangle { horizontal-stretch: 1; }
+                    ProfileAction {
+                        label: "Отмена";
+                        activated => { root.dismiss(); }
+                    }
+                    ProfileAction {
+                        label: "Сохранить"; variant: "primary";
+                        enabled: root.question-draft != "";
+                        activated => {
+                            root.save(root.index, root.question-draft, root.topic-draft);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

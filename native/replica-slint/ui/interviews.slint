@@ -1,0 +1,492 @@
+import { ProfileAction, ProfileColors } from "profile.slint";
+
+export struct InterviewCompanyCard {
+    id: string,
+    name: string,
+    initials: string,
+    logo: image,
+    last-label: string,
+    dialogue-label: string,
+    question-label: string,
+}
+
+export struct InterviewQuestionCard {
+    id: string,
+    title: string,
+    topic: string,
+    level: string,
+    date: string,
+    description: string,
+    summary: string,
+    explanation: string,
+    example: string,
+    company-id: string,
+    company-name: string,
+    demo: bool,
+}
+
+component InterviewBack inherits ProfileAction {
+    label: "К собеседованиям";
+    variant: "link";
+    show-leading: true;
+    leading-icon: @image-url("assets/profile/arrow-left.svg");
+    button-height: 20px;
+    font-size: 13px;
+    icon-size: 14px;
+}
+
+component InterviewLink inherits ProfileAction {
+    variant: "accent-link";
+    show-trailing: true;
+    trailing-icon: @image-url("assets/profile/arrow-right.svg");
+    button-height: 20px;
+}
+
+component InterviewHeading inherits Text {
+    color: ProfileColors.text;
+    font-size: 24px;
+    font-weight: 600;
+    wrap: word-wrap;
+}
+
+component InterviewCopy inherits Text {
+    color: ProfileColors.muted;
+    font-size: 14px;
+    wrap: word-wrap;
+}
+
+component InterviewCaption inherits Text {
+    color: ProfileColors.muted;
+    font-size: 12px;
+    wrap: word-wrap;
+}
+
+component InterviewPanel inherits Rectangle {
+    background: ProfileColors.surface;
+    border-width: 1px;
+    border-color: ProfileColors.border;
+    border-radius: 12px;
+}
+
+component InterviewDivider inherits Rectangle {
+    height: 1px;
+    background: ProfileColors.border;
+}
+
+component CompanyMark inherits Rectangle {
+    in property <InterviewCompanyCard> company;
+    in property <bool> moving;
+    border-radius: 8px;
+    background: #262626;
+    clip: true;
+    transform-scale-x: root.moving ? 108% : 100%;
+    transform-scale-y: root.moving ? 108% : 100%;
+    animate transform-scale-x, transform-scale-y {
+        duration: 180ms;
+        easing: cubic-bezier(0.23, 1, 0.32, 1);
+    }
+
+    if root.company.logo.width > 0: Image {
+        source: root.company.logo;
+        image-fit: contain;
+    }
+    if root.company.logo.width == 0: Text {
+        text: root.company.initials;
+        color: ProfileColors.text;
+        font-size: 12px;
+        font-weight: 600;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+component InterviewTile inherits FocusScope {
+    in property <string> description;
+    in property <length> corner-radius: 13px;
+    out property <bool> hovered: tap.has-hover;
+    callback opened();
+    accessible-role: button;
+    accessible-label: root.description;
+    accessible-action-default => { root.opened(); }
+    key-pressed(event) => {
+        if event.text == Key.Return || event.text == " " {
+            root.opened();
+            return accept;
+        }
+        return reject;
+    }
+
+    InterviewPanel {
+        border-radius: root.corner-radius;
+        border-width: root.has-focus ? 2px : 1px;
+        border-color: root.has-focus ? ProfileColors.amber : root.hovered ? #525252 : ProfileColors.border;
+        @children
+        tap := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.focus(); root.opened(); }
+        }
+    }
+}
+
+component CompanyTile inherits InterviewTile {
+    in property <InterviewCompanyCard> company;
+    in property <bool> reduced-motion;
+    description: root.company.name + " · К вопросам";
+    corner-radius: 16px;
+    min-height: max(236px, body.preferred-height);
+    body := VerticalLayout {
+        padding: 12px;
+        Rectangle {
+            height: 108px;
+            border-width: 1px;
+            border-radius: 12px;
+            border-color: ProfileColors.border;
+            background: #151515;
+            Rectangle {
+                x: (parent.width - self.width) / 2 - 12px;
+                y: (parent.height - self.height) / 2;
+                width: 56px;
+                height: 56px;
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: #404040;
+                background: #262626;
+                transform-rotation: -12deg;
+            }
+            Rectangle {
+                x: (parent.width - self.width) / 2 + 12px;
+                y: (parent.height - self.height) / 2;
+                width: 56px;
+                height: 56px;
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: #404040;
+                background: #262626;
+                transform-rotation: 12deg;
+            }
+            Rectangle {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                width: 60px;
+                height: 60px;
+                border-radius: 14px;
+                border-width: 1px;
+                border-color: #404040;
+                background: #262626;
+                drop-shadow-color: #00000080;
+                drop-shadow-offset-y: 4px;
+                drop-shadow-blur: 8px;
+                CompanyMark {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2 - (self.moving ? 1px : 0px);
+                    width: 38px;
+                    height: 38px;
+                    company: root.company;
+                    moving: !root.reduced-motion && (root.hovered || root.has-focus);
+                    animate y { duration: 180ms; easing: cubic-bezier(0.23, 1, 0.32, 1); }
+                }
+            }
+        }
+        HorizontalLayout {
+            padding: 12px;
+            padding-left: 4px;
+            padding-right: 4px;
+            spacing: 6px;
+            Text {
+                text: root.company.name;
+                color: ProfileColors.text;
+                font-size: 18px;
+                font-weight: 600;
+                wrap: word-wrap;
+                vertical-alignment: center;
+            }
+            Text {
+                text: "К вопросам";
+                color: ProfileColors.amber;
+                font-size: 12px;
+                font-weight: 500;
+                vertical-alignment: center;
+                horizontal-stretch: 0;
+            }
+            Image {
+                y: (parent.height - self.height) / 2;
+                width: 12px;
+                height: 12px;
+                source: @image-url("assets/profile/arrow-right.svg");
+                colorize: ProfileColors.amber;
+            }
+        }
+        InterviewDivider {}
+        VerticalLayout {
+            spacing: 12px;
+            padding-top: 12px;
+            padding-bottom: 12px;
+            padding-left: 4px;
+            padding-right: 4px;
+            HorizontalLayout {
+                spacing: 8px;
+                InterviewCaption { text: root.company.dialogue-label; }
+                InterviewCaption {
+                    text: root.company.question-label;
+                    color: ProfileColors.text;
+                    horizontal-alignment: right;
+                }
+            }
+            if root.company.last-label != "": InterviewCaption { text: root.company.last-label; }
+        }
+    }
+}
+
+component QuestionTile inherits InterviewTile {
+    in property <InterviewQuestionCard> question;
+    in property <bool> show-company;
+    description: root.question.title;
+    min-height: max(166px, body.preferred-height);
+    body := VerticalLayout {
+        padding: 16px;
+        spacing: 8px;
+        InterviewCaption { text: root.question.topic == "" ? "Без темы" : root.question.topic; }
+        Text {
+            text: root.question.title;
+            color: ProfileColors.text;
+            font-size: 14px;
+            font-weight: 600;
+            wrap: word-wrap;
+            vertical-stretch: 1;
+        }
+        InterviewDivider {}
+        InterviewCaption {
+            text: (root.show-company && root.question.company-name != "" ? root.question.company-name + " · " : "")
+                + root.question.date + (root.question.demo ? " · Демо" : "");
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            InterviewCaption {
+                text: root.question.level == "" ? "Сложность не оценена" : root.question.level;
+                color: ProfileColors.text;
+            }
+            InterviewCaption {
+                text: "Открыть";
+                color: ProfileColors.amber;
+                font-weight: 500;
+                horizontal-alignment: right;
+                horizontal-stretch: 0;
+            }
+        }
+    }
+}
+
+component InterviewFacts inherits InterviewPanel {
+    in property <[string]> labels;
+    in property <[string]> values;
+    property <int> columns: root.width >= 520px ? 4 : 2;
+    property <length> inset: 16px;
+    property <length> column-width: (root.width - root.inset * 2) / root.columns;
+    height: root.columns == 4 ? 76px : 122px;
+    for label[index] in root.labels: VerticalLayout {
+        x: root.inset + mod(index, root.columns) * root.column-width;
+        y: root.inset + floor(index / root.columns) * 46px;
+        width: root.column-width;
+        height: 38px;
+        padding-right: 12px;
+        spacing: 4px;
+        InterviewCaption { text: label; }
+        InterviewCopy { text: root.values[index]; color: ProfileColors.text; font-weight: 600; }
+    }
+    for line[index] in root.columns == 4 ? [1, 2, 3] : []: Rectangle {
+        x: root.inset + index * root.column-width - 12px;
+        y: root.inset;
+        width: 1px;
+        height: parent.height - 2 * root.inset;
+        background: ProfileColors.border;
+    }
+}
+
+component InterviewAnswer inherits InterviewPanel {
+    in property <InterviewQuestionCard> entry;
+    in property <bool> dialogue;
+    min-height: body.preferred-height;
+    preferred-height: body.preferred-height;
+    body := VerticalLayout {
+        padding: 16px;
+        spacing: root.dialogue ? 8px : 12px;
+        InterviewCopy {
+            text: root.dialogue ? root.entry.title : "Ответ";
+            color: ProfileColors.text;
+            font-size: root.dialogue ? 14px : 18px;
+            font-weight: 600;
+        }
+        InterviewCopy { text: root.entry.summary; color: root.dialogue ? #d4d4d4 : ProfileColors.text; }
+        if root.entry.explanation != "": InterviewCopy {
+            text: root.entry.explanation;
+            color: root.dialogue ? ProfileColors.muted : #d4d4d4;
+        }
+        if root.entry.example != "" && !root.dialogue: VerticalLayout {
+            spacing: 4px;
+            InterviewDivider {}
+            Rectangle { height: 8px; }
+            InterviewCopy { text: "Пример"; color: ProfileColors.amber; font-weight: 500; }
+            InterviewCopy { text: root.entry.example; }
+        }
+        if root.entry.example != "" && root.dialogue: InterviewCopy { text: root.entry.example; }
+    }
+}
+
+export component InterviewsPage inherits Rectangle {
+    in property <string> kind: "overview";
+    in property <[InterviewCompanyCard]> companies;
+    in property <[InterviewQuestionCard]> questions;
+    in property <[InterviewQuestionCard]> dialogue;
+    in property <InterviewQuestionCard> active-question;
+    in property <InterviewCompanyCard> selected-company;
+    in property <string> summary;
+    in property <bool> reduced-motion;
+    callback navigate(string);
+
+    property <string> home: "profile/interviews";
+    property <string> library: root.home + "/questions";
+    property <bool> is-library: root.kind == "library";
+    property <bool> is-dialogue: root.kind == "dialogue";
+    property <bool> is-detail: root.kind == "question" || root.is-dialogue;
+    property <int> columns: root.width >= 750px ? 3 : root.width >= 440px ? 2 : 1;
+    property <string> visible-count: root.questions.length + " "
+        + (mod(root.questions.length, 100) >= 11 && mod(root.questions.length, 100) <= 14 ? "вопросов"
+            : mod(root.questions.length, 10) == 1 ? "вопрос"
+            : mod(root.questions.length, 10) >= 2 && mod(root.questions.length, 10) <= 4 ? "вопроса" : "вопросов");
+    min-height: body.preferred-height;
+    preferred-height: body.preferred-height;
+
+    body := VerticalLayout {
+        alignment: start;
+        if root.kind == "overview": VerticalLayout {
+            spacing: 24px;
+            VerticalLayout {
+                spacing: 8px;
+                InterviewHeading { text: "Собеседования"; }
+                InterviewCopy { text: root.summary; }
+            }
+            companies-grid := VerticalLayout {
+                spacing: 16px;
+                property <length> column-width: (self.width - 16px * (root.columns - 1)) / root.columns;
+                for row in ceil(root.companies.length / root.columns): HorizontalLayout {
+                    alignment: start;
+                    spacing: 16px;
+                    for col in min(root.columns, root.companies.length - row * root.columns): CompanyTile {
+                        width: companies-grid.column-width;
+                        company: root.companies[row * root.columns + col];
+                        reduced-motion: root.reduced-motion;
+                        opened => { root.navigate(root.home + "/company/" + self.company.id); }
+                    }
+                }
+            }
+            HorizontalLayout {
+                alignment: start;
+                ProfileAction { label: "Вся база вопросов"; activated => { root.navigate(root.library); } }
+            }
+        }
+
+        if root.is-library || root.kind == "company": VerticalLayout {
+            spacing: 20px;
+            HorizontalLayout {
+                alignment: start;
+                InterviewBack { activated => { root.navigate(root.home); } }
+            }
+            if !root.is-library && root.selected-company.id == "": InterviewCopy { text: "Компания не найдена."; }
+            if root.is-library || root.selected-company.id != "": VerticalLayout {
+                spacing: 20px;
+                VerticalLayout {
+                    spacing: 8px;
+                    HorizontalLayout {
+                        spacing: 12px;
+                        if !root.is-library: CompanyMark { width: 36px; height: 36px; company: root.selected-company; }
+                        InterviewHeading {
+                            text: root.is-library ? "Вся база вопросов" : root.selected-company.name;
+                            vertical-alignment: center;
+                        }
+                    }
+                    InterviewCopy { text: root.visible-count + " из диалогов"; }
+                }
+                if root.questions.length > 0: questions-grid := VerticalLayout {
+                    spacing: 16px;
+                    property <length> column-width: (self.width - 16px * (root.columns - 1)) / root.columns;
+                    for row in ceil(root.questions.length / root.columns): HorizontalLayout {
+                        alignment: start;
+                        spacing: 16px;
+                        for col in min(root.columns, root.questions.length - row * root.columns): QuestionTile {
+                            width: questions-grid.column-width;
+                            question: root.questions[row * root.columns + col];
+                            show-company: root.is-library;
+                            opened => { root.navigate(root.home + "/question/" + self.question.id); }
+                        }
+                    }
+                }
+                if root.questions.length == 0: InterviewPanel {
+                    height: no-questions.preferred-height + 32px;
+                    no-questions := InterviewCopy {
+                        x: 16px; y: 16px;
+                        width: parent.width - 32px;
+                        text: "Вопросы появятся после первого ответа в диалоге с этой компанией.";
+                    }
+                }
+                if !root.is-library: HorizontalLayout {
+                    alignment: start;
+                    ProfileAction { label: "Вся база вопросов"; activated => { root.navigate(root.library); } }
+                }
+            }
+        }
+
+        if root.is-detail: VerticalLayout {
+            spacing: root.is-dialogue ? 20px : 24px;
+            HorizontalLayout {
+                alignment: space-between;
+                spacing: 12px;
+                InterviewBack {
+                    label: root.is-dialogue && root.active-question.id != "" ? "К вопросу" : "Вся база вопросов";
+                    activated => { root.navigate(root.is-dialogue && root.active-question.id != ""
+                        ? root.home + "/question/" + root.active-question.id : root.library); }
+                }
+                if !root.is-dialogue && root.active-question.id != "": InterviewLink {
+                    label: "К вопросам компании";
+                    activated => { root.navigate(root.home + "/company/" + root.active-question.company-id); }
+                }
+            }
+            if root.active-question.id == "": InterviewCopy { text: "Вопрос не найден."; }
+            if root.active-question.id != "" && root.is-dialogue: VerticalLayout {
+                spacing: 20px;
+                InterviewHeading { text: root.active-question.demo ? "Пример диалога" : "Исходный диалог"; }
+                InterviewCopy { text: root.active-question.company-name + " · " + root.active-question.date; }
+                for entry in root.dialogue: InterviewAnswer { entry: entry; dialogue: true; }
+            }
+            if root.active-question.id != "" && !root.is-dialogue: VerticalLayout {
+                spacing: 24px;
+                InterviewHeading { text: root.active-question.title; font-size: root.width >= 520px ? 30px : 24px; }
+                InterviewFacts {
+                    labels: ["Компания", "Тема", "Сложность", "Диалог"];
+                    values: [root.active-question.company-name, root.active-question.topic == "" ? "Без темы" : root.active-question.topic,
+                        root.active-question.level == "" ? "Не оценена" : root.active-question.level, root.active-question.date];
+                }
+                if root.active-question.description != "": VerticalLayout {
+                    spacing: 8px;
+                    InterviewCopy { text: "Описание"; color: ProfileColors.text; font-size: 16px; font-weight: 600; }
+                    InterviewCopy { text: root.active-question.description; }
+                }
+                InterviewAnswer { entry: root.active-question; }
+                HorizontalLayout {
+                    spacing: 12px;
+                    VerticalLayout {
+                        spacing: 4px;
+                        InterviewCopy { text: "Источник"; color: ProfileColors.text; font-size: 16px; font-weight: 600; }
+                        InterviewCopy {
+                            text: (root.active-question.demo ? "Демонстрационный диалог" : "Вопрос из диалога")
+                                + " · " + root.active-question.company-name + ", " + root.active-question.date;
+                        }
+                    }
+                    InterviewLink {
+                        label: root.active-question.demo ? "Открыть пример диалога" : "Открыть исходный диалог";
+                        activated => { root.navigate(root.home + "/dialogue/" + root.active-question.id); }
+                    }
+                }
+            }
+        }
+    }
+}

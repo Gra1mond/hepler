@@ -1,6 +1,13 @@
 # Реплика
 
-**v0.1.0 · Только фронтенд**
+## Нативная версия для Windows
+
+Нативная сборка «Реплики» использует Rust и Slint. У неё отдельный [релиз для Windows x64](https://github.com/Gra1mond/hepler/releases/tag/v0.1.0-slint) и [инструкция по сборке](native/replica-slint/README.md).
+
+[![Made with Slint](https://raw.githubusercontent.com/slint-ui/slint/master/logo/MadeWithSlint-logo-whitebg.png)](https://slint.dev/)
+
+## Версия на Tauri
+
 
 Десктопный прототип для Windows, который помогает разбирать вопросы с технических собеседований и собирать материалы для подготовки. Интерфейс написан на React и TypeScript, оформлен на Tailwind CSS и работает в оболочке Tauri 2.
 

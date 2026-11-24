@@ -1,0 +1,777 @@
+import { ReplicaSelect } from "select.slint";
+import { ScrollView } from "std-widgets.slint";
+import { ReplicaButton, ReplicaColors, UiText, PageHeading, ModelCatalog, ModelItem, ModelLogo } from "foundation.slint";
+
+component SectionHeading inherits VerticalLayout {
+    in property <string> title;
+    in property <string> button-text;
+    in property <string> variant: "secondary";
+    in property <bool> show-plus;
+    callback action();
+
+    spacing: 8px;
+    HorizontalLayout {
+        spacing: 12px;
+        Text {
+            text: root.title;
+            font-size: 22px;
+            font-weight: 600;
+            color: ReplicaColors.text;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+            wrap: word-wrap;
+        }
+        ReplicaButton {
+            caption: root.button-text;
+            variant: root.variant;
+            button-width: 120px;
+            show-icon: root.show-plus;
+            icon: @image-url("assets/settings/plus.svg");
+            icon-size: 15px;
+            clicked => { root.action(); }
+        }
+    }
+    Rectangle {
+        height: 1px;
+        background: ReplicaColors.edge-subtle;
+    }
+}
+
+component ConnectionStatus inherits Rectangle {
+    in property <string> message;
+    preferred-width: status-layout.preferred-width;
+    min-width: status-layout.preferred-width;
+    height: 34px;
+    horizontal-stretch: 0;
+    background: #34d39914;
+    border-width: 1px;
+    border-color: #04785780;
+    border-radius: 8px;
+    status-layout := HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 6px;
+        Rectangle {
+            width: 13px;
+            Image {
+                x: 0px;
+                y: (parent.height - self.height) / 2;
+                width: 13px;
+                height: 13px;
+                source: @image-url("assets/home/check.svg");
+                colorize: #6ee7b7;
+            }
+        }
+        Text {
+            text: root.message;
+            font-size: 12px;
+            color: #6ee7b7;
+            vertical-alignment: center;
+        }
+    }
+}
+
+component ConnectionCard inherits Rectangle {
+    in property <string> model-id;
+    in property <string> title;
+    in property <string> description;
+    in property <string> status;
+    in property <bool> reduced-motion;
+
+    private property <bool> narrow: root.width < 610px;
+    min-height: body.preferred-height;
+    preferred-height: self.min-height;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: ReplicaColors.edge-subtle;
+    background: ReplicaColors.panel;
+
+    body := HorizontalLayout {
+        padding: 11px;
+        spacing: root.narrow ? 15px : 20px;
+        Rectangle {
+            width: root.narrow ? 100px : 146px;
+            height: 90px;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: #fbbf241a;
+            background: #fbbf240d;
+
+            emblem := Rectangle {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                width: 48px;
+                height: 48px;
+                private property <bool> active: hover.has-hover && !root.reduced-motion;
+
+                Rectangle {
+                    width: 40px;
+                    height: 40px;
+                    x: 4px - (emblem.active ? 15px : 6px);
+                    y: 4px - (emblem.active ? 3px : 5px);
+                    transform-rotation: emblem.active ? -16deg : -7deg;
+                    animate x, y, transform-rotation {
+                        duration: root.reduced-motion ? 0ms : 260ms;
+                        easing: cubic-bezier(0.23, 1, 0.32, 1);
+                    }
+                    Rectangle {
+                        border-width: 1px;
+                        border-radius: 12px;
+                        border-color: #fbbf2433;
+                        background: #272110;
+                    }
+                }
+                Rectangle {
+                    width: 40px;
+                    height: 40px;
+                    x: 4px + (emblem.active ? 15px : 7px);
+                    y: 4px - (emblem.active ? 3px : 7px);
+                    transform-rotation: emblem.active ? 16deg : 8deg;
+                    animate x, y, transform-rotation {
+                        duration: root.reduced-motion ? 0ms : 260ms;
+                        easing: cubic-bezier(0.23, 1, 0.32, 1);
+                    }
+                    Rectangle {
+                        border-width: 1px;
+                        border-radius: 12px;
+                        border-color: #fbbf2433;
+                        background: #272110;
+                    }
+                }
+                Rectangle {
+                    width: 48px;
+                    height: 48px;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2 - (emblem.active ? 2px : 0px);
+                    transform-scale-x: emblem.active ? 96% : 100%;
+                    transform-scale-y: emblem.active ? 96% : 100%;
+                    border-width: 1px;
+                    border-radius: 8px;
+                    border-color: #fbbf2426;
+                    background: ReplicaColors.control;
+                    drop-shadow-blur: 16px;
+                    drop-shadow-color: #fbbf242e;
+                    animate y, transform-scale-x, transform-scale-y {
+                        duration: root.reduced-motion ? 0ms : emblem.active ? 200ms : 260ms;
+                        easing: cubic-bezier(0.23, 1, 0.32, 1);
+                    }
+                    if root.model-id != "": ModelLogo {
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        model-id: root.model-id;
+                    }
+                    if root.model-id == "": Image {
+                        source: @image-url("assets/settings/plug.svg");
+                        width: 18px;
+                        height: 18px;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        colorize: ReplicaColors.amber;
+                    }
+                }
+                hover := TouchArea {}
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            spacing: 5px;
+            horizontal-stretch: 1;
+            Text {
+                text: root.title;
+                font-size: 16px;
+                font-weight: 600;
+                color: ReplicaColors.text;
+                wrap: word-wrap;
+            }
+            Text {
+                text: root.description;
+                font-size: 14px;
+                color: ReplicaColors.muted;
+                wrap: word-wrap;
+            }
+            if root.narrow && root.status != "": HorizontalLayout {
+                alignment: start;
+                ConnectionStatus { message: root.status; }
+            }
+        }
+
+        if !root.narrow && root.status != "": Rectangle {
+            width: badge.preferred-width + 8px;
+            horizontal-stretch: 0;
+            badge := ConnectionStatus {
+                x: 0px;
+                y: (parent.height - self.height) / 2;
+                width: parent.width - 8px;
+                message: root.status;
+            }
+        }
+    }
+}
+
+struct FormatOption {
+    value: string,
+    note: string,
+    lines: int,
+    tilted: bool,
+}
+
+component FormatCard inherits FocusScope {
+    in property <FormatOption> option;
+    in property <bool> selected;
+    in property <int> focus-request;
+    callback chosen(string);
+    callback step(int);
+    private property <bool> pointer-focus;
+    private property <bool> keyboard-focus: root.has-focus && !root.pointer-focus;
+    changed has-focus => { if !root.has-focus { root.pointer-focus = false; } }
+    changed focus-request => { if root.selected { root.focus(); } }
+    focus-on-tab-navigation: root.selected;
+
+    min-height: panel-content.preferred-height;
+    preferred-height: self.min-height;
+    accessible-role: radio-button;
+    accessible-label: root.option.value;
+    accessible-checked: root.selected;
+    accessible-action-default => { root.chosen(root.option.value); }
+    key-pressed(event) => {
+        if event.text == Key.UpArrow || event.text == Key.LeftArrow {
+            root.step(-1);
+            return accept;
+        }
+        if event.text == Key.DownArrow || event.text == Key.RightArrow {
+            root.step(1);
+            return accept;
+        }
+        if event.text == " " || event.text == Key.Return {
+            root.chosen(root.option.value);
+            return accept;
+        }
+        return reject;
+    }
+
+    Rectangle {
+        border-radius: 16px;
+        border-width: root.keyboard-focus ? 2px : 1px;
+        border-color: root.keyboard-focus ? ReplicaColors.amber : root.selected ? #fbbf2466 : ReplicaColors.edge;
+        background: root.selected ? #171203 : ReplicaColors.panel;
+        panel-content := VerticalLayout {
+            padding: 13px;
+            spacing: 12px;
+            Rectangle {
+                height: 108px;
+                background: ReplicaColors.control;
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: ReplicaColors.edge-subtle;
+                Rectangle {
+                    width: 96px;
+                    height: 28px + root.option.lines * 9px;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    transform-rotation: root.option.tilted ? -6deg : 0deg;
+                    Rectangle {
+                        border-width: 1px;
+                        border-radius: 12px;
+                        border-color: root.selected ? #fbbf2473 : ReplicaColors.edge-strong;
+                        background: ReplicaColors.raised;
+                        VerticalLayout {
+                            padding-left: 16px;
+                            padding-right: 16px;
+                            spacing: 6px;
+                            alignment: center;
+                            for index in root.option.lines: Rectangle {
+                                height: 3px;
+                                width: mod(index, 2) == 0 ? 62px : 41px;
+                                border-radius: 2px;
+                                background: root.selected ? ReplicaColors.amber-light : ReplicaColors.muted;
+                                opacity: mod(index, 2) == 0 ? 1 : 0.6;
+                            }
+                        }
+                    }
+                }
+            }
+            Rectangle { height: 1px; background: ReplicaColors.edge-subtle; }
+            VerticalLayout {
+                spacing: 8px;
+                HorizontalLayout {
+                    spacing: 8px;
+                    Rectangle {
+                        width: 13px;
+                        Rectangle {
+                            width: 13px;
+                            height: 13px;
+                            y: (parent.height - self.height) / 2;
+                            border-radius: 7px;
+                            border-width: 1px;
+                            border-color: root.selected ? ReplicaColors.amber : #737373;
+                            background: root.selected ? #fbbf2414 : ReplicaColors.raised;
+                            if root.selected: Rectangle {
+                                width: 8px;
+                                height: 8px;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                                border-radius: 4px;
+                                background: ReplicaColors.amber;
+                            }
+                        }
+                    }
+                    Text {
+                        text: root.option.value;
+                        font-size: 16px;
+                        min-height: 24px;
+                        font-weight: 500;
+                        vertical-alignment: center;
+                        color: ReplicaColors.text;
+                        wrap: word-wrap;
+                    }
+                }
+                Text {
+                    text: root.option.note;
+                    color: ReplicaColors.muted;
+                    font-size: 13px;
+                    min-height: 19px;
+                    vertical-alignment: center;
+                    wrap: word-wrap;
+                }
+            }
+        }
+        TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.pointer-focus = true; root.focus(); root.chosen(root.option.value); }
+        }
+    }
+}
+
+component DialogField inherits Rectangle {
+    in property <string> label;
+    in property <string> placeholder;
+    in property <bool> secret;
+    in property <bool> invalid;
+    in property <bool> editable: true;
+    in property <bool> active: true;
+    in-out property <string> value;
+    callback edited(string);
+    callback submit();
+
+    forward-focus: entry;
+    min-height: 42px;
+    preferred-height: 42px;
+    border-width: entry.has-focus && root.editable ? 2px : 1px;
+    border-radius: 8px;
+    border-color: root.invalid ? #f87171 : entry.has-focus && root.editable ? ReplicaColors.amber : ReplicaColors.edge-strong;
+    background: ReplicaColors.control;
+
+    public function focus-input() { entry.focus(); }
+
+    entry := TextInput {
+        x: 12px;
+        y: 1px;
+        width: parent.width - 24px;
+        height: parent.height - 2px;
+        text <=> root.value;
+        enabled: root.active && root.editable;
+        read-only: !root.editable;
+        input-type: root.secret ? InputType.password : InputType.text;
+        color: ReplicaColors.strong-text;
+        selection-background-color: #fbbf2466;
+        font-size: 14px;
+        vertical-alignment: center;
+        accessible-label: root.label;
+        accessible-placeholder-text: root.placeholder;
+        edited => { root.edited(self.text); }
+        key-pressed(event) => {
+            // The Windows Russian layout supplies Cyrillic characters for these shortcuts.
+            if event.modifiers.control && !event.modifiers.shift && !event.modifiers.alt && self.preedit-text == "" {
+                if event.text == "ф" || event.text == "Ф" {
+                    self.select-all();
+                    return accept;
+                }
+                if event.text == "м" || event.text == "М" {
+                    self.paste();
+                    return accept;
+                }
+            }
+            return reject;
+        }
+        accepted => { if root.active { root.submit(); } }
+    }
+    if root.value == "" && root.placeholder != "" && entry.preedit-text == "": Text {
+        x: 12px;
+        y: 0px;
+        width: parent.width - 24px;
+        height: parent.height;
+        text: root.placeholder;
+        color: #737373;
+        font-size: 14px;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+}
+
+export component ConnectionDialog inherits FocusScope {
+    in property <string> model;
+    callback connect(string);
+    callback close();
+
+    private property <int> selected-index: ModelCatalog.get-index(root.model);
+    private property <string> code;
+    private property <string> status: "editing";
+    private property <bool> busy: root.status == "pending";
+    private property <bool> save-on-success;
+
+    forward-focus: key-field;
+
+    init => { key-field.focus-input(); }
+
+    key-pressed(event) => {
+        if event.text == Key.Escape && !root.busy {
+            root.close();
+            return accept;
+        }
+        return reject;
+    }
+
+    function validate(save: bool) {
+        if root.busy || UiText.trim(root.code) == "" { return; }
+        if root.status == "valid" {
+            if save { root.connect(ModelCatalog.entries[root.selected-index].id); }
+            return;
+        }
+        root.save-on-success = save;
+        root.status = "pending";
+    }
+
+    Timer {
+        interval: 450ms;
+        running: root.busy;
+        triggered => {
+            if UiText.trim(root.code) == "replica-demo" {
+                root.status = "valid";
+                if root.save-on-success { root.connect(ModelCatalog.entries[root.selected-index].id); }
+            } else {
+                root.status = UiText.trim(root.code) == "replica-offline" ? "unavailable" : "invalid";
+            }
+        }
+    }
+
+    Rectangle {
+        background: #000000b3;
+        TouchArea {}
+    }
+
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: min(482px, max(0px, parent.width - 32px));
+        height: min(panel.preferred-height, max(0px, parent.height - 32px));
+        border-radius: 18px;
+        border-width: 1px;
+        border-color: #fbbf2473;
+        background: ReplicaColors.control;
+        clip: true;
+
+        dialog-scroll := ScrollView {
+            width: parent.width;
+            height: parent.height;
+            horizontal-scrollbar-policy: always-off;
+            viewport-width: self.visible-width;
+            viewport-height: panel.preferred-height;
+
+            panel := VerticalLayout {
+                x: 0px;
+                y: 0px;
+                width: dialog-scroll.visible-width;
+                height: self.preferred-height;
+                padding: root.width >= 600px ? 28px : 20px;
+                spacing: 16px;
+                VerticalLayout {
+                    spacing: 8px;
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Text {
+                            text: "Добавить API-подключение";
+                            color: ReplicaColors.text;
+                            font-size: 24px;
+                            font-weight: 600;
+                            horizontal-stretch: 1;
+                            wrap: word-wrap;
+                        }
+                        ReplicaButton {
+                            button-height: 32px;
+                            horizontal-padding: 10px;
+                            label: "Закрыть";
+                            icon: @image-url("assets/settings/x.svg");
+                            icon-size: 15px;
+                            show-icon: true;
+                            enabled: !root.busy;
+                            clicked => { root.close(); }
+                        }
+                    }
+                    Text {
+                        text: "Выберите провайдера и модель, затем введите демо-ключ.";
+                        color: ReplicaColors.muted;
+                        font-size: 13px;
+                        wrap: word-wrap;
+                    }
+                    Rectangle { height: 7px; }
+                }
+                VerticalLayout {
+                    spacing: 6px;
+                    Text { text: "Провайдер"; color: ReplicaColors.text; font-size: 14px; }
+                    ReplicaSelect {
+                        label: "Провайдер";
+                        label-size: 14px;
+                        control-height: 42px;
+                        options: [
+                            { label: "OpenAI", value: "gpt", disabled: false },
+                            { label: "Anthropic", value: "claude", disabled: false },
+                            { label: "Google", value: "gemini", disabled: false },
+                            { label: "Mistral AI", value: "mistral", disabled: false },
+                        ];
+                        current-index: root.selected-index;
+                        enabled: !root.busy;
+                        selected(value) => {
+                            root.selected-index = ModelCatalog.get-index(value);
+                            root.status = "editing";
+                        }
+                    }
+                }
+                VerticalLayout {
+                    spacing: 6px;
+                    Text { text: "Модель"; color: ReplicaColors.text; font-size: 14px; }
+                    DialogField {
+                        label: "Модель";
+                        editable: false;
+                        value: ModelCatalog.entries[root.selected-index].name;
+                    }
+                }
+                VerticalLayout {
+                    spacing: 6px;
+                    Text { text: "Ключ API"; color: ReplicaColors.text; font-size: 14px; }
+                    key-field := DialogField {
+                        label: "Ключ API";
+                        placeholder: "Введите демо-ключ";
+                        secret: true;
+                        active: !root.busy;
+                        invalid: root.status == "invalid";
+                        value <=> root.code;
+                        edited => { root.status = "editing"; }
+                        submit => { if root.status != "invalid" && root.status != "unavailable" { root.validate(true); } }
+                    }
+                }
+                VerticalLayout {
+                    spacing: 6px;
+                    HorizontalLayout {
+                        alignment: start;
+                        spacing: 8px;
+                        ReplicaButton {
+                            caption: root.busy ? "Проверка…" : "Проверить подключение";
+                            font-size: 13px;
+                            horizontal-padding: 10px;
+                            enabled: !root.busy && UiText.trim(root.code) != "";
+                            clicked => { root.validate(false); }
+                        }
+                        ReplicaButton {
+                            caption: "Демо-ключ";
+                            variant: "ghost";
+                            font-size: 12px;
+                            horizontal-padding: 6px;
+                            button-height: 32px;
+                            enabled: !root.busy;
+                            clicked => { root.code = "replica-demo"; root.status = "editing"; }
+                        }
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        ReplicaButton {
+                            caption: "Недоступная модель";
+                            variant: "ghost";
+                            font-size: 12px;
+                            horizontal-padding: 6px;
+                            button-height: 32px;
+                            enabled: !root.busy;
+                            clicked => { root.code = "replica-offline"; root.status = "editing"; }
+                        }
+                    }
+                }
+                if root.status == "valid" || root.status == "invalid" || root.status == "unavailable": Text {
+                    text: root.status == "valid" ? "Подключение проверено."
+                        : root.status == "invalid" ? "Демо-ключ не подошёл. Вставьте демо-ключ и попробуйте ещё раз."
+                        : "Модель недоступна для этого ключа.";
+                    color: root.status == "valid" ? #6ee7b7 : root.status == "invalid" ? #fca5a5 : ReplicaColors.amber-light;
+                    font-size: 14px;
+                    wrap: word-wrap;
+                }
+                Rectangle { height: 1px; background: ReplicaColors.edge; }
+                HorizontalLayout {
+                    alignment: end;
+                    spacing: 12px;
+                    ReplicaButton {
+                        caption: "Отмена";
+                        enabled: !root.busy;
+                        clicked => { root.close(); }
+                    }
+                    ReplicaButton {
+                        caption: "Добавить";
+                        variant: "primary";
+                        enabled: !root.busy && UiText.trim(root.code) != "" && root.status != "invalid" && root.status != "unavailable";
+                        clicked => { root.validate(true); }
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component SettingsPage inherits Rectangle {
+    in property <string> model;
+    in property <[string]> connected;
+    in property <bool> reduced-motion;
+    in-out property <string> format;
+    in property <bool> open-connection;
+    in property <bool> external-dialog: false;
+    out property <string> status-notice: root.notice;
+    callback request-connection();
+    callback connect(string);
+    callback save-format(string);
+    callback close-connection();
+    callback demo-error();
+
+    private property <bool> local-connection;
+    private property <string> notice;
+    private property <string> draft-format: root.format;
+    private property <int> draft-focus-request;
+
+    function choose-adjacent(index: int, direction: int) {
+        root.draft-format = root.options[mod(index + root.options.length + direction, root.options.length)].value;
+        root.notice = "";
+        root.draft-focus-request += 1;
+    }
+    private property <[FormatOption]> options: [
+        { value: "Краткий", note: "Только тезис", lines: 1, tilted: false },
+        { value: "Структурированный", note: "Тезис, объяснение и пример", lines: 3, tilted: false },
+        { value: "Развёрнутый", note: "Подробности и оговорки", lines: 4, tilted: true },
+    ];
+
+    min-height: settings-body.preferred-height;
+    preferred-height: self.min-height;
+
+    public function show-notice(text: string) { root.notice = text; }
+
+    settings-body := VerticalLayout {
+        alignment: start;
+        spacing: 32px;
+        PageHeading {
+            title: "Настройки агента";
+            subtitle: "Подключение по API и формат ответа для собеседования.";
+        }
+        VerticalLayout {
+            spacing: 16px;
+            SectionHeading {
+                title: "Подключение по API";
+                button-text: "Добавить";
+                variant: "primary";
+                show-plus: true;
+                action => {
+                    root.notice = "";
+                    if !root.external-dialog { root.local-connection = true; }
+                    root.request-connection();
+                }
+            }
+            if root.connected.length == 0: ConnectionCard {
+                title: "Нет API-подключений";
+                description: "Добавьте провайдера, чтобы агент мог отвечать в чате.";
+                reduced-motion: root.reduced-motion;
+            }
+            for connected-id in root.connected: ConnectionCard {
+                model-id: connected-id;
+                property <ModelItem> specification: ModelCatalog.entries[ModelCatalog.get-index(connected-id)];
+                title: self.specification.provider;
+                description: self.specification.name + " · Демо-подключение";
+                status: self.specification.name + " подключена";
+                reduced-motion: root.reduced-motion;
+            }
+        }
+        VerticalLayout {
+            spacing: 16px;
+            SectionHeading {
+                title: "Формат ответа";
+                button-text: "Сохранить";
+                action => {
+                    root.format = root.draft-format;
+                    root.save-format(root.draft-format);
+                    root.notice = "Формат ответа сохранён";
+                }
+            }
+            if root.width >= 600px: HorizontalLayout {
+                spacing: 12px;
+                for entry[index] in root.options: FormatCard {
+                    option: entry;
+                    selected: root.draft-format == entry.value;
+                    width: (root.width - 24px) / 3;
+                    focus-request: root.draft-focus-request;
+                    chosen(value) => { root.draft-format = value; root.notice = ""; }
+                    step(direction) => { root.choose-adjacent(index, direction); }
+                }
+            }
+            if root.width < 600px: VerticalLayout {
+                spacing: 12px;
+                for entry[index] in root.options: FormatCard {
+                    option: entry;
+                    selected: root.draft-format == entry.value;
+                    focus-request: root.draft-focus-request;
+                    chosen(value) => { root.draft-format = value; root.notice = ""; }
+                    step(direction) => { root.choose-adjacent(index, direction); }
+                }
+            }
+        }
+        HorizontalLayout {
+            alignment: start;
+            ReplicaButton {
+                caption: "Сбой следующего ответа";
+                variant: "ghost";
+                clicked => {
+                    root.demo-error();
+                    root.notice = "Следующий запрос в основном чате завершится ошибкой.";
+                }
+            }
+        }
+    }
+
+    if root.notice != "" && !root.external-dialog: Rectangle {
+        x: 0px;
+        y: parent.height - self.height;
+        width: min(notice-content.preferred-width, parent.width);
+        height: notice-content.preferred-height;
+        border-width: 1px;
+        border-radius: 12px;
+        border-color: ReplicaColors.edge;
+        background: ReplicaColors.control;
+        notice-content := VerticalLayout {
+            padding-left: 16px;
+            padding-right: 16px;
+            padding-top: 12px;
+            padding-bottom: 12px;
+            Text {
+                text: root.notice;
+                font-size: 14px;
+                color: ReplicaColors.strong-text;
+                wrap: word-wrap;
+            }
+        }
+    }
+
+    if !root.external-dialog && (root.open-connection || root.local-connection): ConnectionDialog {
+        width: parent.width;
+        height: parent.height;
+        model: root.model;
+        connect(id) => {
+            root.connect(id);
+            root.notice = "Подключение добавлено";
+            root.local-connection = false;
+            root.close-connection();
+        }
+        close => { root.local-connection = false; root.close-connection(); }
+    }
+}

@@ -73,54 +73,6 @@
   .composer-glow::before { top: -2px; left: 28%; }
   .composer-glow::after { right: 15%; bottom: -2px; }
 
-  .registration-stack {
-    --face-depth: clamp(30px, 10vw, 50px);
-    margin-top: 50px;
-    padding-right: var(--face-depth);
-    padding-bottom: 50px;
-    transform: skewY(14deg);
-    transform-origin: top left;
-  }
-
-  .registration-slab {
-    position: relative;
-    display: block;
-    background: var(--slab);
-  }
-
-  .registration-slab:first-child::before {
-    content: "";
-    position: absolute;
-    inset: auto 0 100%;
-    height: var(--face-depth);
-    background: var(--slab);
-    transform: skewX(-45deg);
-    transform-origin: bottom left;
-    pointer-events: none;
-  }
-
-  .registration-slab::after {
-    content: "";
-    position: absolute;
-    inset: 0 auto 0 100%;
-    width: var(--face-depth);
-    background: color-mix(in oklab, var(--slab) 94%, black);
-    transform: skewY(-45deg);
-    transform-origin: top left;
-    pointer-events: none;
-  }
-
-  .registration-row {
-    position: relative;
-    display: block;
-    width: 100%;
-    min-height: 49px;
-    padding: 0 14px;
-    color: #071509;
-  }
-
-  .registration-row::placeholder { color: #071509; opacity: 1; }
-  .registration-row:focus-visible { z-index: 1; outline: 2px solid #071509; outline-offset: -3px; }
 }
 
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
@@ -134,10 +86,4 @@
   .company-logo { transition: transform 180ms cubic-bezier(.23, 1, .32, 1); }
   .company-logo-target:focus-visible .company-logo,
   .company-logo-target:has(:focus-visible) .company-logo { transform: translateY(-1px) scale(1.08); }
-  .registration-slab { transition: transform 300ms cubic-bezier(.23, 1, .32, 1); }
-  .registration-slab:has(:focus-visible) { z-index: 2; transform: translate(18px, 4px); }
-}
-
-@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  .registration-slab:hover { z-index: 2; transform: translate(18px, 4px); }
 }

@@ -1,0 +1,401 @@
+import { ReplicaButton, ReplicaColors, ModelCatalog, ModelItem, ModelLogo } from "foundation.slint";
+
+component ModelCard inherits FocusScope {
+    in property <ModelItem> item;
+    in property <bool> selected;
+    in property <bool> connected;
+    in property <bool> reduced-motion;
+    callback clicked();
+    private property <bool> pointer-focus;
+    private property <bool> keyboard-focus: root.has-focus && !root.pointer-focus;
+    changed has-focus => { if !root.has-focus { root.pointer-focus = false; } }
+
+    width: 257px;
+    min-height: 143px;
+    preferred-height: 143px;
+    accessible-role: button;
+    accessible-label: root.item.name;
+    accessible-checked: root.selected;
+    accessible-action-default => { root.clicked(); }
+
+    key-pressed(event) => {
+        if event.text == Key.Return || event.text == " " {
+            root.clicked();
+            return accept;
+        }
+        return reject;
+    }
+
+    Rectangle {
+        background: ReplicaColors.control;
+        border-width: root.keyboard-focus ? 2px : 1px;
+        border-radius: 13px;
+        border-color: root.keyboard-focus || (root.selected && root.connected) ? ReplicaColors.amber
+            : mouse.has-hover ? #737373 : ReplicaColors.edge;
+
+        VerticalLayout {
+            padding-left: 17px;
+            padding-right: 17px;
+            padding-top: 15px;
+            padding-bottom: 13px;
+            alignment: start;
+
+            Rectangle {
+                height: 40px;
+                ModelLogo {
+                    x: (32px - self.width) / 2;
+                    y: (32px - self.height) / 2 - (mouse.has-hover && !root.reduced-motion ? 2px : 0px);
+                    width: mouse.has-hover && !root.reduced-motion ? 30.72px : 32px;
+                    height: self.width;
+                    model-id: root.item.id;
+                    animate y, width {
+                        duration: root.reduced-motion ? 0ms : mouse.has-hover ? 200ms : 260ms;
+                        easing: cubic-bezier(0.23, 1, 0.32, 1);
+                    }
+                }
+            }
+            Text {
+                text: root.item.name;
+                font-size: 18px;
+                font-weight: 600;
+                color: ReplicaColors.text;
+                height: 28px;
+                vertical-alignment: center;
+            }
+            Text {
+                text: root.item.provider;
+                font-size: 12px;
+                color: ReplicaColors.muted;
+                height: 16px;
+                vertical-alignment: center;
+            }
+            Rectangle { height: 8px; }
+            Text {
+                text: root.item.description;
+                font-size: 13px;
+                color: ReplicaColors.secondary-text;
+                height: 20px;
+                vertical-alignment: center;
+                wrap: word-wrap;
+            }
+        }
+
+        if root.selected && root.connected: Rectangle {
+            x: parent.width - 29px;
+            y: 16px;
+            width: 16px;
+            height: 16px;
+            border-radius: 8px;
+            background: ReplicaColors.amber;
+            Image {
+                source: @image-url("assets/home/check.svg");
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                width: 11px;
+                height: 11px;
+                colorize: ReplicaColors.background;
+            }
+        }
+
+        mouse := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.pointer-focus = true; root.focus(); root.clicked(); }
+        }
+    }
+}
+
+component ModelTrack inherits VerticalLayout {
+    in property <string> selected;
+    in property <[string]> connected;
+    in property <bool> reduced-motion;
+    callback select-model(string);
+
+    spacing: 12px;
+    alignment: LayoutAlignment.start;
+
+    private property <length> arrow-offset;
+    private property <length> eased-offset: root.arrow-offset;
+    private property <bool> moving-by-arrow;
+    animate eased-offset {
+        duration: root.reduced-motion ? 0ms : 260ms;
+        easing: cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    changed eased-offset => {
+        if root.moving-by-arrow {
+            track.viewport-x = min(0px, max(track.width - track.viewport-width, root.eased-offset));
+            if root.eased-offset == root.arrow-offset { root.moving-by-arrow = false; }
+        }
+    }
+
+    function move(direction: int) {
+        let destination = min(0px, max(track.width - track.viewport-width, track.viewport-x - 272px * direction));
+        if destination == track.viewport-x { return; }
+        if root.reduced-motion || (!root.moving-by-arrow && root.arrow-offset != track.viewport-x) {
+            // If the user just dragged the strip, continue from the current native scroll position.
+            track.viewport-x = destination;
+            root.arrow-offset = destination;
+        } else {
+            root.moving-by-arrow = true;
+            root.arrow-offset = destination;
+        }
+    }
+
+    HorizontalLayout {
+        spacing: 12px;
+        VerticalLayout {
+            spacing: 4px;
+            horizontal-stretch: 1;
+            Text {
+                text: "Модели для ответа";
+                font-size: 25px;
+                font-weight: 700;
+                color: ReplicaColors.text;
+                min-height: 37.5px;
+                vertical-alignment: center;
+            }
+            Text {
+                text: "Листайте, чтобы выбрать модель. Доступность зависит от подключения по API.";
+                font-size: 14px;
+                color: ReplicaColors.muted;
+                min-height: 20px;
+                vertical-alignment: center;
+                wrap: word-wrap;
+            }
+        }
+        Rectangle {
+            width: 84px;
+            horizontal-stretch: 0;
+            HorizontalLayout {
+                y: 0px;
+                width: parent.width;
+                height: 36px;
+                spacing: 8px;
+                ReplicaButton {
+                    button-height: 36px;
+                    button-width: 38px;
+                    horizontal-padding: 10px;
+                    label: "Модели слева";
+                    icon: @image-url("assets/home/arrow-left.svg");
+                    show-icon: true;
+                    clicked => { root.move(-1); }
+                }
+                ReplicaButton {
+                    button-height: 36px;
+                    button-width: 38px;
+                    horizontal-padding: 10px;
+                    label: "Модели справа";
+                    icon: @image-url("assets/home/arrow-right.svg");
+                    show-icon: true;
+                    clicked => { root.move(1); }
+                }
+            }
+        }
+    }
+
+    Rectangle {
+        height: 174px;
+        min-width: 0px;
+
+        track := Flickable {
+            x: 0px;
+            y: 4px;
+            width: parent.width;
+            height: 144px;
+            viewport-width: 1076px;
+            viewport-height: self.height;
+
+            HorizontalLayout {
+                x: 0px;
+                y: 0px;
+                width: track.viewport-width;
+                height: 143px;
+                spacing: 16px;
+                for specification in ModelCatalog.entries: ModelCard {
+                    item: specification;
+                    selected: specification.id == root.selected;
+                    connected: ModelCatalog.contains(root.connected, specification.id);
+                    reduced-motion: root.reduced-motion;
+                    clicked => { root.select-model(specification.id); }
+                }
+            }
+        }
+
+        if track.width < track.viewport-width: Rectangle {
+            x: 0px;
+            y: parent.height - self.height;
+            width: parent.width;
+            height: 3px;
+            background: ReplicaColors.raised;
+            Rectangle {
+                width: parent.width * (track.width / track.viewport-width);
+                x: max(0px, -track.viewport-x * (track.width / track.viewport-width));
+                height: parent.height;
+                background: #737373;
+            }
+        }
+    }
+}
+
+component Hero inherits Rectangle {
+    in property <bool> model-connected;
+    in property <int> restore-start-focus;
+    callback start();
+    changed restore-start-focus => { start-button.focus(); }
+
+    private property <length> inset: self.width >= 500px ? 32px : 20px;
+    min-height: self.width >= 800px ? 366px : 320px;
+    preferred-height: self.min-height;
+    border-radius: 19px;
+    border-width: 1px;
+    border-color: ReplicaColors.edge;
+    background: ReplicaColors.surface;
+    clip: true;
+
+    if root.width >= 925px: Image {
+        source: @image-url("assets/home/hero.png");
+        width: parent.width * 0.512;
+        height: parent.height - 36px;
+        x: parent.width - self.width - 11px;
+        y: 25px;
+        image-fit: contain;
+    }
+
+    intro := VerticalLayout {
+        x: root.inset + 1px;
+        y: max(20px, (parent.height - self.height) / 2);
+        width: min(432px, parent.width - 2 * root.inset);
+        height: self.preferred-height;
+        alignment: LayoutAlignment.start;
+
+        Text {
+            text: "Реплика для собеседований";
+            color: ReplicaColors.amber;
+            font-size: 13px;
+            font-weight: 600;
+            height: 19.5px;
+            vertical-alignment: center;
+        }
+        Rectangle { height: 20px; }
+        Text {
+            text: "Услышьте вопрос.\nСоберите ответ.";
+            color: ReplicaColors.text;
+            font-size: root.width >= 925px ? 45px : 32px;
+            font-weight: 700;
+            wrap: word-wrap;
+        }
+        Rectangle { height: 16px; }
+        Text {
+            text: root.model-connected
+                ? "Выберите модель, добавьте материалы и начните диалог в отдельном окне."
+                : "Добавьте API-подключение, чтобы выбрать модель и начать собеседование.";
+            color: ReplicaColors.muted;
+            font-size: 15px;
+            width: min(400px, parent.width);
+            min-height: 44px;
+            vertical-alignment: center;
+            wrap: word-wrap;
+        }
+        Rectangle { height: 32px; }
+        HorizontalLayout {
+            alignment: LayoutAlignment.start;
+            start-button := ReplicaButton {
+                caption: root.model-connected ? "Начать собеседование" : "Подключить модель";
+                variant: "primary";
+                button-width: 228px;
+                icon: @image-url("assets/home/arrow-right.svg");
+                icon-size: 17px;
+                show-icon: true;
+                clicked => { root.start(); }
+            }
+        }
+    }
+}
+
+export component HomePage inherits VerticalLayout {
+    in property <string> model;
+    in property <[string]> connected;
+    in property <bool> reduced-motion;
+    in property <int> restore-start-focus;
+    callback select-model(string);
+    callback start();
+    callback open-materials();
+
+    alignment: LayoutAlignment.start;
+    spacing: self.width >= 800px ? 40px : 32px;
+
+    Hero {
+        model-connected: ModelCatalog.contains(root.connected, root.model);
+        restore-start-focus: root.restore-start-focus;
+        start => { root.start(); }
+    }
+
+    ModelTrack {
+        selected: root.model;
+        connected: root.connected;
+        reduced-motion: root.reduced-motion;
+        select-model(model-id) => { root.select-model(model-id); }
+    }
+
+    Rectangle {
+        border-radius: 12px;
+        border-width: 1px;
+        border-color: ReplicaColors.edge;
+        background: ReplicaColors.surface;
+        VerticalLayout {
+            padding-left: 15px;
+            padding-right: 15px;
+            padding-top: 9px;
+            padding-bottom: 9px;
+            spacing: 9px;
+            HorizontalLayout {
+                spacing: 12px;
+                Rectangle {
+                    width: 18px;
+                    Image {
+                        x: 0px;
+                        y: (parent.height - self.height) / 2;
+                        width: 18px;
+                        height: 18px;
+                        source: @image-url("assets/home/file-text.svg");
+                        colorize: ReplicaColors.muted;
+                    }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 4px;
+                    horizontal-stretch: 1;
+                    Text {
+                        text: "Материалы собеседования";
+                        font-size: 14px;
+                        font-weight: 500;
+                        color: ReplicaColors.text;
+                        wrap: word-wrap;
+                    }
+                    Text {
+                        text: "Резюме и список вопросов";
+                        font-size: 12px;
+                        color: ReplicaColors.muted;
+                        wrap: word-wrap;
+                    }
+                }
+                if root.width >= 435px: ReplicaButton {
+                    caption: "Открыть материалы";
+                    button-width: 195px;
+                    icon: @image-url("assets/home/arrow-right.svg");
+                    show-icon: true;
+                    clicked => { root.open-materials(); }
+                }
+            }
+            if root.width < 435px: HorizontalLayout {
+                alignment: end;
+                ReplicaButton {
+                    caption: "Открыть материалы";
+                    button-width: 195px;
+                    icon: @image-url("assets/home/arrow-right.svg");
+                    show-icon: true;
+                    clicked => { root.open-materials(); }
+                }
+            }
+        }
+    }
+}

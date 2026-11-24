@@ -1,0 +1,171 @@
+export struct SelectOption { label: string, value: string, disabled: bool }
+
+export component ReplicaSelect inherits FocusScope {
+    in property <[SelectOption]> options;
+    in property <int> current-index;
+    in property <string> label;
+    in property <length> control-height: 32px;
+    in property <length> label-size: 13px;
+    callback selected(string);
+
+    private property <bool> expanded;
+    private property <bool> pointer-focus;
+    private property <int> cursor: -1;
+    private property <string> caption: root.current-index >= 0 && root.current-index < root.options.length ? root.options[root.current-index].label : "";
+    height: root.control-height;
+
+    accessible-role: combobox;
+    accessible-label: root.label;
+    accessible-value: root.caption;
+    accessible-enabled: root.enabled;
+    accessible-expandable: true;
+    accessible-expanded: root.expanded;
+    accessible-action-expand => { root.open-menu(); }
+
+    changed has-focus => {
+        if !root.has-focus && !root.expanded { root.pointer-focus = false; }
+    }
+
+    function available(index: int) -> bool {
+        return index >= 0 && index < root.options.length && !root.options[index].disabled;
+    }
+    function next(from: int, step: int) -> int {
+        // Replica selectors contain at most the four catalog entries.
+        if root.available(from + step) { return from + step; }
+        if root.available(from + 2 * step) { return from + 2 * step; }
+        if root.available(from + 3 * step) { return from + 3 * step; }
+        if root.available(from + 4 * step) { return from + 4 * step; }
+        return from;
+    }
+    function choose(index: int) {
+        if root.available(index) { root.selected(root.options[index].value); }
+    }
+    function open-menu() {
+        if root.enabled && root.options.length > 0 {
+            root.cursor = root.current-index >= 0 ? root.current-index : root.next(-1, 1);
+            menu.show();
+        }
+    }
+
+    key-pressed(event) => {
+        root.pointer-focus = false;
+        if !root.enabled { return reject; }
+        if event.text == " " || event.text == Key.Return || event.text == Key.F4
+            || (event.modifiers.alt && event.text == Key.DownArrow) {
+            root.open-menu();
+            return accept;
+        }
+        if event.text == Key.UpArrow || event.text == Key.DownArrow {
+            root.choose(root.next(root.current-index, event.text == Key.DownArrow ? 1 : -1));
+            return accept;
+        }
+        if event.text == Key.Home || event.text == Key.End {
+            root.choose(event.text == Key.Home ? root.next(-1, 1) : root.next(root.options.length, -1));
+            return accept;
+        }
+        return reject;
+    }
+
+    Rectangle {
+        border-radius: 6px;
+        border-width: root.has-focus && !root.pointer-focus ? 2px : 1px;
+        border-color: root.has-focus && !root.pointer-focus ? #fbbf24 : #404040;
+        background: #171717;
+        opacity: root.enabled ? 1 : 0.5;
+        Text {
+            x: 10px;
+            width: parent.width - 32px;
+            text: root.caption;
+            vertical-alignment: center;
+            font-size: root.label-size;
+            color: #d4d4d4;
+            overflow: elide;
+        }
+        Image {
+            x: parent.width - 19px;
+            width: 12px; height: 12px;
+            source: @image-url("assets/common/chevron-down.svg");
+            colorize: #e5e5e5;
+        }
+        TouchArea {
+            enabled: root.enabled;
+            clicked => {
+                root.pointer-focus = true;
+                root.focus();
+                root.open-menu();
+            }
+        }
+    }
+    menu := PopupWindow {
+        x: 0px;
+        y: root.height;
+        width: root.width;
+        height: root.options.length * 28px + 8px;
+        close-policy: close-on-click-outside;
+        forward-focus: menu-focus;
+
+        menu-focus := FocusScope {
+            focus-changed-event => { root.expanded = self.has-focus; }
+            key-pressed(event) => {
+                if event.text == Key.Escape || event.text == Key.F4 {
+                    menu.close();
+                    root.focus();
+                    return accept;
+                }
+                if event.text == Key.Return || event.text == " " {
+                    root.choose(root.cursor);
+                    menu.close();
+                    root.focus();
+                    return accept;
+                }
+                if event.text == Key.UpArrow || event.text == Key.DownArrow {
+                    root.cursor = root.next(root.cursor, event.text == Key.DownArrow ? 1 : -1);
+                    return accept;
+                }
+                if event.text == Key.Home || event.text == Key.End {
+                    root.cursor = event.text == Key.Home ? root.next(-1, 1) : root.next(root.options.length, -1);
+                    return accept;
+                }
+                if event.text == Key.Tab || event.text == Key.Backtab {
+                    menu.close();
+                    root.focus();
+                    return reject;
+                }
+                return reject;
+            }
+            Rectangle {
+                border-radius: 6px;
+                border-width: 1px;
+                border-color: #404040;
+                background: #171717;
+                VerticalLayout {
+                    padding: 4px;
+                    for option[index] in root.options: Rectangle {
+                        height: 28px;
+                        border-radius: 3px;
+                        background: !option.disabled && (index == root.cursor || hit.has-hover) ? #353535 : transparent;
+                        accessible-role: button;
+                        accessible-label: option.label;
+                        accessible-enabled: !option.disabled;
+                        accessible-action-default => {
+                            if !option.disabled { root.choose(index); menu.close(); root.focus(); }
+                        }
+                        Text {
+                            x: 7px;
+                            width: parent.width - 14px;
+                            text: option.label;
+                            vertical-alignment: center;
+                            font-size: root.label-size;
+                            color: option.disabled ? #737373 : #e5e5e5;
+                            overflow: elide;
+                        }
+                        hit := TouchArea {
+                            enabled: !option.disabled;
+                            clicked => { root.choose(index); menu.close(); root.focus(); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -133,7 +133,10 @@ try {
     page.waitForEvent('popup'),
     page.getByRole('button', { name: 'Создать аккаунт' }).click(),
   ])
-  await registration.setViewportSize({ width: 444, height: 438 })
+  await registration.setViewportSize({ width: 320, height: 360 })
+  assert.equal(await registration.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+  await registration.getByRole('button', { name: 'Создать аккаунт' }).scrollIntoViewIfNeeded()
+  await registration.setViewportSize({ width: 444, height: 472 })
   await registration.getByRole('textbox', { name: 'Имя' }).fill('Тестовая Анна')
   await registration.getByRole('textbox', { name: 'Электронная почта' }).fill('anna@example.com')
   await registration.getByLabel('Пароль').fill('demo-passphrase')

@@ -1,0 +1,210 @@
+export global ReplicaColors {
+    out property <color> amber: #fbbf24;
+    out property <color> amber-light: #fcd34d;
+    out property <color> background: #000000;
+    out property <color> surface: #0a0a0a;
+    out property <color> panel: #121212;
+    out property <color> control: #171717;
+    out property <color> raised: #262626;
+    out property <color> edge: #404040;
+    out property <color> edge-subtle: #262626;
+    out property <color> edge-strong: #525252;
+    out property <color> text: #e5e5e5;
+    out property <color> strong-text: #f5f5f5;
+    out property <color> secondary-text: #d4d4d4;
+    out property <color> muted: #a3a3a3;
+}
+
+export global UiText {
+    pure callback trim(string) -> string;
+    pure callback initials(string) -> string;
+}
+
+export component CompanyBadge inherits Rectangle {
+    in property <string> name;
+    in property <image> logo;
+    in property <bool> highlighted;
+    in property <bool> reduced-motion;
+    in property <length> initials-size: 12px;
+    private property <bool> moving: root.highlighted && !root.reduced-motion;
+    private property <string> initials: UiText.initials(root.name);
+    in property <length> radius: 8px;
+    Rectangle {
+        border-radius: root.radius;
+        background: ReplicaColors.raised;
+        clip: true;
+        y: root.moving ? -1px : 0px;
+        transform-scale-x: root.moving ? 1.08 : 1;
+        transform-scale-y: root.moving ? 1.08 : 1;
+        animate y, transform-scale-x, transform-scale-y {
+            duration: root.reduced-motion ? 0ms : 180ms;
+            easing: cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        if root.logo.width > 0: Image {
+            source: root.logo;
+            width: 100%;
+            height: 100%;
+            image-fit: contain;
+        }
+        if root.logo.width == 0 && root.initials != "": Text {
+            text: root.initials;
+            font-size: root.initials-size;
+            font-weight: 600;
+            color: ReplicaColors.text;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+        }
+        if root.logo.width == 0 && root.initials == "": Image {
+            source: @image-url("assets/chat/building-2.svg");
+            colorize: ReplicaColors.text;
+            width: min(17px, parent.width);
+            height: self.width;
+        }
+    }
+}
+
+export struct ModelItem {
+    id: string,
+    name: string,
+    provider: string,
+    description: string,
+}
+
+export global ModelCatalog {
+    out property <[ModelItem]> entries: [
+        { id: "gpt", name: "GPT", provider: "OpenAI", description: "Универсальные ответы" },
+        { id: "claude", name: "Claude", provider: "Anthropic", description: "Работа с длинным контекстом" },
+        { id: "gemini", name: "Gemini", provider: "Google", description: "Ответы по тексту и файлам" },
+        { id: "mistral", name: "Mistral", provider: "Mistral AI", description: "Ответы на вопросы" },
+    ];
+
+    public pure function contains(items: [string], id: string) -> bool {
+        // The demo list contains the four predefined providers, at most once each.
+        return (items.length > 0 && items[0] == id)
+            || (items.length > 1 && items[1] == id)
+            || (items.length > 2 && items[2] == id)
+            || (items.length > 3 && items[3] == id);
+    }
+
+    public pure function get-index(id: string) -> int {
+        return id == "claude" ? 1 : id == "gemini" ? 2 : id == "mistral" ? 3 : 0;
+    }
+}
+
+export component ModelLogo inherits Image {
+    in property <string> model-id;
+    source: root.model-id == "claude" ? @image-url("assets/home/claude.svg")
+        : root.model-id == "gemini" ? @image-url("assets/home/gemini.svg")
+        : root.model-id == "mistral" ? @image-url("assets/home/mistral.svg")
+        : @image-url("assets/home/gpt.svg");
+    width: 32px;
+    height: 32px;
+    image-fit: contain;
+}
+
+export component ReplicaButton inherits FocusScope {
+    in property <string> caption;
+    in property <string> label: root.caption;
+    in property <string> variant: "secondary";
+    in property <image> icon;
+    in property <bool> show-icon: false;
+    in property <length> icon-size: 16px;
+    in property <length> button-height: 40px;
+    in property <length> horizontal-padding: 14px;
+    in property <length> button-width: 0px;
+    in property <length> font-size: 14px;
+    in property <length> corner-radius: 8px;
+    callback clicked();
+
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => { if root.enabled { root.clicked(); } }
+
+    min-height: root.button-height;
+    preferred-height: root.button-height;
+    min-width: max(root.button-width, content.preferred-width);
+    preferred-width: self.min-width;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+
+    private property <bool> primary: root.variant == "primary";
+    private property <bool> ghost: root.variant == "ghost" || root.variant == "accent";
+    private property <color> foreground: root.primary ? ReplicaColors.background
+        : root.variant == "accent" ? ReplicaColors.amber
+        : root.ghost ? ReplicaColors.secondary-text : ReplicaColors.strong-text;
+
+    key-pressed(event) => {
+        if root.enabled && (event.text == Key.Return || event.text == " ") {
+            root.clicked();
+            return accept;
+        }
+        return reject;
+    }
+
+    Rectangle {
+        x: 0px;
+        y: (parent.height - self.height) / 2;
+        width: parent.width;
+        height: root.button-height;
+        border-width: root.has-focus ? 2px : 1px;
+        border-radius: root.corner-radius;
+        border-color: root.has-focus ? ReplicaColors.amber
+            : root.primary ? (pointer.has-hover && root.enabled ? ReplicaColors.amber-light : ReplicaColors.amber)
+            : root.ghost ? transparent : (pointer.has-hover && root.enabled ? #737373 : ReplicaColors.edge);
+        background: root.primary ? (pointer.has-hover && root.enabled ? ReplicaColors.amber-light : ReplicaColors.amber)
+            : pointer.has-hover && root.enabled ? (root.variant == "accent" ? #fbbf241a : ReplicaColors.raised)
+            : root.ghost ? transparent : ReplicaColors.control;
+        opacity: root.enabled ? 1 : 0.45;
+
+        content := HorizontalLayout {
+            padding-left: root.horizontal-padding;
+            padding-right: root.horizontal-padding;
+            alignment: center;
+            spacing: 8px;
+            if root.show-icon: Rectangle {
+                width: root.icon-size;
+                Image {
+                    x: 0px;
+                    y: (parent.height - self.height) / 2;
+                    width: root.icon-size;
+                    height: root.icon-size;
+                    source: root.icon;
+                    colorize: root.foreground;
+                }
+            }
+            if root.caption != "": Text {
+                text: root.caption;
+                font-size: root.font-size;
+                font-weight: 500;
+                color: root.foreground;
+                vertical-alignment: center;
+            }
+        }
+
+        pointer := TouchArea {
+            enabled: root.enabled;
+            mouse-cursor: MouseCursor.pointer;
+            clicked => { root.focus(); root.clicked(); }
+        }
+    }
+}
+
+export component PageHeading inherits VerticalLayout {
+    in property <string> title;
+    in property <string> subtitle;
+    spacing: 12px;
+
+    Text {
+        text: root.title;
+        color: ReplicaColors.text;
+        font-size: 36px;
+        font-weight: 700;
+        wrap: word-wrap;
+    }
+    if root.subtitle != "": Text {
+        text: root.subtitle;
+        color: ReplicaColors.muted;
+        font-size: 15px;
+        wrap: word-wrap;
+    }
+}

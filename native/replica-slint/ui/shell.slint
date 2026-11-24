@@ -1,0 +1,244 @@
+import { ScrollView } from "std-widgets.slint";
+
+export struct NavigationItem { route: string, title: string, icon: image }
+
+export component NavigationButton inherits FocusScope {
+    in property <string> title;
+    in property <image> icon;
+    in property <bool> active;
+    in property <bool> tab-style;
+    in property <bool> mark-active: true;
+    callback activated();
+    private property <bool> pointer-focus;
+    changed has-focus => { if !root.has-focus { root.pointer-focus = false; } }
+    height: root.tab-style ? 38px : 40px;
+    min-width: label.preferred-width + (root.tab-style ? 16px : 50px);
+    accessible-role: button;
+    accessible-label: root.title;
+    accessible-action-default => { root.activated(); }
+    key-pressed(event) => {
+        if (event.text == " " || event.text == Key.Return) { root.activated(); return accept; }
+        return reject;
+    }
+    Rectangle {
+        border-radius: root.tab-style ? 0px : 6px;
+        background: root.tab-style ? transparent : pointer.has-hover ? #262626 : transparent;
+        border-width: root.has-focus && !root.pointer-focus ? 2px : 0px;
+        border-color: #fbbf24;
+        if root.active && root.mark-active: Rectangle {
+            x: 0;
+            y: root.tab-style ? parent.height - 2px : (parent.height - 18px) / 2;
+            width: root.tab-style ? parent.width : 2px;
+            height: root.tab-style ? 2px : 18px;
+            border-radius: 1px;
+            background: #fbbf24;
+        }
+        if !root.tab-style: Image {
+            x: 12px;
+            width: 15px;
+            height: 15px;
+            source: root.icon;
+            colorize: root.active ? #fbbf24 : #a3a3a3;
+        }
+        label := Text {
+            x: root.tab-style ? 8px : 39px;
+            width: parent.width - self.x - 8px;
+            text: root.title;
+            vertical-alignment: center;
+            font-weight: root.active ? (root.tab-style ? 500 : 600) : 400;
+            color: root.active || (root.tab-style && pointer.has-hover) ? #f5f5f5 : #a3a3a3;
+            overflow: elide;
+        }
+        pointer := TouchArea {
+            mouse-cursor: MouseCursor.pointer;
+            clicked => { root.pointer-focus = true; root.focus(); root.activated(); }
+        }
+    }
+}
+
+export component ProfileNavigation inherits Rectangle {
+    in property <string> active;
+    callback navigate(string);
+    // These widths are the original Russian labels with their horizontal padding.
+    private property <[length]> tab-widths: [140px, 124px, 94px, 152px];
+    private property <[length]> tab-offsets: [0px, 160px, 304px, 418px];
+    private property <int> columns: self.width >= 570px ? 4 : self.width >= 398px ? 3 : 2;
+    height: root.columns == 4 ? 40px : 80px;
+
+    Rectangle { y: parent.height - 1px; height: 1px; background: #262626; }
+    for tab[index] in ["Данные аккаунта", "Собеседования", "Материалы", "Использование API"]: NavigationButton {
+        property <string> route: ["profile", "profile/interviews", "profile/materials", "usage"][index];
+        property <bool> second-row: index >= root.columns;
+        x: root.tab-offsets[index] - (self.second-row ? root.tab-offsets[root.columns] : 0px);
+        y: self.second-row ? 40px : 0px;
+        width: root.tab-widths[index];
+        height: 40px;
+        title: tab;
+        active: root.active == self.route;
+        tab-style: true;
+        activated => { root.navigate(self.route); }
+    }
+}
+
+export component NavigationRail inherits Rectangle {
+    in property <bool> narrow;
+    in property <string> page;
+    in property <[NavigationItem]> items;
+    callback navigate(string);
+    callback search(string);
+    private property <string> query;
+    private property <int> focus-request;
+    private property <string> focus-route;
+    public function restore-focus(route: string) {
+        root.focus-route = route;
+        root.focus-request += 1;
+    }
+    background: #121212;
+    Rectangle {
+        x: root.narrow ? 0px : parent.width - 1px;
+        y: root.narrow ? parent.height - 1px : 0px;
+        width: root.narrow ? parent.width : 1px;
+        height: root.narrow ? 1px : parent.height;
+        background: #262626;
+    }
+    brand := FocusScope {
+        x: root.narrow ? 16px : 20px;
+        y: root.narrow ? 11px : 22px;
+        width: 126px;
+        height: 34px;
+        accessible-role: button;
+        accessible-label: "Реплика";
+        accessible-action-default => { root.navigate("home"); }
+        key-pressed(event) => {
+            if (event.text == Key.Return || event.text == " ") { root.navigate("home"); return accept; }
+            return reject;
+        }
+        Rectangle {
+            width: 34px; height: 34px; x: 0px;
+            border-radius: 17px; background: #fbbf24;
+            Image { width: 16px; height: 16px; source: @image-url("assets/common/chat.svg"); colorize: #0a0a0a; }
+        }
+        Text { x: 44px; text: "Реплика"; color: #e5e5e5; font-size: 18px; font-weight: 600; vertical-alignment: center; }
+        Rectangle { border-width: brand.has-focus ? 1px : 0px; border-color: #fbbf24; border-radius: 5px; }
+        TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { root.navigate("home"); } }
+    }
+    if !root.narrow: Rectangle {
+        x: 20px; y: 88px; width: parent.width - 40px; height: 42px;
+        Rectangle { y: parent.height - 1px; height: 1px; background: search-input.has-focus ? #fbbf24 : #404040; }
+        Text {
+            x: 4px; height: parent.height; vertical-alignment: center;
+            visible: root.query == ""; text: "Найти раздел..."; color: #a3a3a3;
+        }
+        search-input := TextInput {
+            x: 4px; width: parent.width - 8px; height: parent.height;
+            color: #e5e5e5;
+            selection-background-color: #fbbf24;
+            selection-foreground-color: #000;
+            vertical-alignment: center;
+            single-line: true;
+            accessible-label: "Найти раздел";
+            text <=> root.query;
+            edited => { root.search(self.text); }
+            accepted => {
+                if (root.items.length > 0) { root.navigate(root.items[0].route); root.query = ""; root.search(""); }
+            }
+        }
+    }
+    if !root.narrow: VerticalLayout {
+        x: 20px; y: 142px; width: root.width - 40px; height: root.height - 154px;
+        alignment: start;
+        spacing: 3px;
+        if root.items.length == 0: Text { text: "Разделы не найдены"; color: #a3a3a3; }
+        for item in root.items: VerticalLayout {
+            if item.route == "profile" && root.query == "": Rectangle {
+                height: 32px;
+                Rectangle { y: 15px; height: 1px; background: #262626; }
+            }
+            NavigationButton {
+                property <int> requested: root.focus-request;
+                changed requested => { if root.focus-route == item.route { self.focus(); } }
+                title: item.title;
+                icon: item.icon;
+                active: root.page == item.route;
+                activated => { root.navigate(item.route); root.query = ""; root.search(""); }
+            }
+        }
+    }
+    if root.narrow: ScrollView {
+        x: 12px;
+        y: 56px;
+        width: root.width - 24px;
+        height: 40px;
+        vertical-scrollbar-policy: always-off;
+        horizontal-scrollbar-policy: always-off;
+        mouse-drag-pan-enabled: true;
+        viewport-width: max(self.visible-width, row.preferred-width);
+        row := HorizontalLayout {
+            spacing: 4px;
+            for item in root.items: NavigationButton {
+                property <int> requested: root.focus-request;
+                changed requested => { if root.focus-route == item.route { self.focus(); } }
+                title: item.title;
+                icon: item.icon;
+                active: root.page == item.route;
+                activated => { root.navigate(item.route); }
+            }
+        }
+    }
+}
+component RecordType inherits VerticalLayout {
+    in property <string> title;
+    in property <string> body;
+    in property <image> icon;
+    spacing: 9px;
+    Rectangle { height: 1px; background: #404040; }
+    Rectangle { height: 10px; }
+    HorizontalLayout {
+        alignment: start;
+        spacing: 8px;
+        Image { width: 15px; height: 15px; source: root.icon; colorize: #e5e5e5; }
+        Text { text: root.title; color: #e5e5e5; font-weight: 500; }
+    }
+    Text { text: root.body; font-size: 13px; color: #a3a3a3; wrap: word-wrap; }
+}
+export component RecordsPage inherits VerticalLayout {
+    spacing: 12px;
+    Text { text: "Записи"; color: #e5e5e5; font-size: 36px; font-weight: 700; }
+    Text { text: "Раздел для разбора собеседований после звонка."; font-size: 15px; color: #a3a3a3; wrap: word-wrap; }
+    Rectangle { height: root.width < 560px ? 36px : 52px; }
+    Rectangle {
+        border-radius: 16px;
+        border-width: 1px;
+        border-color: #262626;
+        background: #171717;
+        VerticalLayout {
+            padding-left: root.width < 560px ? 20px : 56px;
+            padding-right: self.padding-left;
+            padding-top: root.width < 560px ? 40px : 64px;
+            padding-bottom: self.padding-top;
+            alignment: start;
+            HorizontalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 48px; height: 48px; border-radius: 12px; background: #fbbf2414;
+                    Image { width: 20px; height: 20px; source: @image-url("assets/common/monitor.svg"); colorize: #fbbf24; }
+                }
+            }
+            Rectangle { height: 24px; }
+            Text { text: "Записи появятся здесь"; color: #e5e5e5; horizontal-alignment: center; font-size: 24px; font-weight: 700; }
+            Rectangle { height: 16px; }
+            Text { text: "В будущей версии здесь можно будет открыть запись экрана и диалога."; color: #a3a3a3; horizontal-alignment: center; wrap: word-wrap; }
+            Rectangle { height: 48px; }
+            if root.width >= 560px: HorizontalLayout {
+                spacing: 28px;
+                RecordType { title: "Запись экрана"; body: "Пересмотреть действия во время собеседования."; icon: @image-url("assets/common/monitor.svg"); }
+                RecordType { title: "Запись диалога"; body: "Вернуться к вопросам интервьюера и своим ответам."; icon: @image-url("assets/common/chat.svg"); }
+            }
+            if root.width < 560px: VerticalLayout {
+                spacing: 28px;
+                RecordType { title: "Запись экрана"; body: "Пересмотреть действия во время собеседования."; icon: @image-url("assets/common/monitor.svg"); }
+                RecordType { title: "Запись диалога"; body: "Вернуться к вопросам интервьюера и своим ответам."; icon: @image-url("assets/common/chat.svg"); }
+            }
+        }
+    }
+}

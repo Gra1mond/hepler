@@ -1,0 +1,899 @@
+import { ScrollView } from "std-widgets.slint";
+import { CompanyBadge, ReplicaColors } from "foundation.slint";
+import { ReplicaSelect, SelectOption } from "select.slint";
+
+export struct ChatRow {
+    id: int,
+    question: string,
+    status: string,
+    summary: string,
+    explanation: string,
+    example: string,
+}
+
+component Mark inherits Rectangle {
+    border-radius: 8px;
+    background: ReplicaColors.amber;
+    Image {
+        source: @image-url("assets/chat/message.svg");
+        colorize: #0a0a0a;
+        width: 16px;
+        height: 16px;
+    }
+}
+
+export component ChatButton inherits FocusScope {
+    in property <string> label;
+    in property <string> caption;
+    in property <image> icon;
+    in property <bool> show-icon: false;
+    in property <bool> primary: false;
+    in property <bool> bare: false;
+    in property <bool> selected: false;
+    in property <color> icon-color: ReplicaColors.text;
+    callback clicked();
+    private property <bool> pointer-focus;
+    private property <bool> keyboard-focus: root.has-focus && !root.pointer-focus;
+    changed has-focus => { if !root.has-focus { root.pointer-focus = false; } }
+
+    min-height: 32px;
+    preferred-height: 32px;
+    horizontal-stretch: 0;
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => { if root.enabled { root.clicked(); } }
+
+    key-pressed(event) => {
+        if root.enabled && (event.text == Key.Return || event.text == " ") {
+            root.clicked();
+            return accept;
+        }
+        return reject;
+    }
+
+    Rectangle {
+        border-width: root.keyboard-focus ? 2px : root.bare ? 0px : 1px;
+        border-radius: 6px;
+        border-color: root.keyboard-focus || root.primary ? ReplicaColors.amber : root.selected ? #fbbf2480 : ReplicaColors.edge;
+        background: root.primary ? ReplicaColors.amber : mouse.has-hover && root.enabled ? #262626 : root.bare ? transparent : #171717;
+        opacity: root.enabled ? 1 : 0.48;
+        HorizontalLayout {
+            padding-left: 9px;
+            padding-right: 9px;
+            alignment: center;
+            spacing: 6px;
+            if root.show-icon: Rectangle {
+                width: 14px;
+                Image {
+                    x: 0px;
+                    y: (parent.height - self.height) / 2;
+                    source: root.icon;
+                    width: 14px;
+                    height: 14px;
+                    colorize: root.icon-color;
+                }
+            }
+            if root.caption != "": Text {
+                text: root.caption;
+                font-size: 13px;
+                font-weight: 500;
+                color: root.primary ? #0a0a0a : root.selected ? ReplicaColors.amber : ReplicaColors.text;
+                vertical-alignment: center;
+            }
+        }
+        mouse := TouchArea {
+            enabled: root.enabled;
+            mouse-cursor: pointer;
+            clicked => { root.pointer-focus = true; root.focus(); root.clicked(); }
+        }
+    }
+}
+
+component InterviewLabel inherits Rectangle {
+    min-height: 32px;
+    border-radius: 8px;
+    background: #fbbf241a;
+    HorizontalLayout {
+        padding: 8px;
+        spacing: 5px;
+        Rectangle {
+            width: 14px;
+            Image {
+                y: (parent.height - self.height) / 2;
+                width: 14px;
+                height: 14px;
+                source: @image-url("assets/chat/zap.svg");
+                colorize: ReplicaColors.amber;
+            }
+        }
+        Text {
+            text: "Техническое интервью";
+            color: ReplicaColors.amber;
+            font-size: 12px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+}
+
+component ChatModelSelect inherits ReplicaSelect {
+    preferred-width: 156px;
+    min-width: 156px;
+    label: "Модель для ответа";
+}
+
+component ChatFormatSelect inherits ReplicaSelect {
+    in property <string> format;
+    min-width: 172px;
+    preferred-width: 172px;
+    max-width: 172px;
+    current-index: root.format == "Краткий" ? 0 : root.format == "Развёрнутый" ? 2 : 1;
+    options: [
+        { label: "Краткий", value: "Краткий", disabled: false },
+        { label: "Структурированный", value: "Структурированный", disabled: false },
+        { label: "Развёрнутый", value: "Развёрнутый", disabled: false },
+    ];
+    label: "Формат ответа";
+}
+
+component ChatQuestionsButton inherits ChatButton {
+    in property <int> count;
+    label: "Вопросы";
+    caption: "Вопросы · " + root.count;
+    icon: @image-url("assets/chat/list.svg");
+    show-icon: true;
+    enabled: root.count > 0;
+}
+
+component AnswerSection inherits VerticalLayout {
+    in property <string> title;
+    in property <string> body;
+    in property <bool> compact;
+    padding-left: root.compact ? 0px : 4px;
+    padding-right: root.compact ? 0px : 4px;
+    spacing: 4px;
+    Text {
+        text: root.title;
+        font-size: 14px;
+        font-weight: 500;
+        color: ReplicaColors.text;
+        wrap: word-wrap;
+    }
+    Text {
+        text: root.body;
+        font-size: root.compact ? 15px : 16px;
+        color: ReplicaColors.text;
+        wrap: word-wrap;
+    }
+}
+
+component ExchangeView inherits VerticalLayout {
+    in property <ChatRow> exchange;
+    in property <string> copy-notice;
+    in property <bool> busy;
+    in property <bool> compact;
+    in property <bool> reduced-motion;
+    callback stop();
+    callback open-settings();
+    callback retry(int);
+    callback copy-answer(int);
+    property <bool> use-message-insets: !root.compact && root.width >= 600px;
+    spacing: root.compact ? 15px : 12px;
+    padding-top: root.compact ? 12px : 0px;
+
+    HorizontalLayout {
+        alignment: root.compact ? stretch : end;
+        padding-right: root.use-message-insets ? 32px : 0px;
+        Rectangle {
+            preferred-width: root.compact ? root.width : min(root.width - (root.use-message-insets ? 32px : 0px), 480px);
+            max-width: root.compact ? root.width : 480px;
+            min-height: root.compact ? 0px : max(78px, question-text.preferred-height);
+            border-radius: root.compact ? 0px : 16px;
+            background: root.compact ? transparent : #262626;
+            question-text := VerticalLayout {
+                padding-left: root.compact ? 0px : 16px;
+                padding-right: self.padding-left;
+                padding-top: root.compact ? 0px : 12px;
+                padding-bottom: self.padding-top;
+                spacing: 4px;
+                Text {
+                    text: "Вопрос интервьюера";
+                    color: ReplicaColors.muted;
+                    font-size: 13px;
+                }
+                Text {
+                    text: root.exchange.question;
+                    color: ReplicaColors.text;
+                    font-size: 16px;
+                    font-weight: 600;
+                    wrap: word-wrap;
+                }
+            }
+        }
+    }
+
+    if !root.compact: HorizontalLayout {
+        alignment: start;
+        padding-top: 16px;
+        padding-left: root.use-message-insets ? 32px : 0px;
+        spacing: 14px;
+        Mark { width: 32px; height: 32px; }
+        Text {
+            text: "Реплика";
+            color: ReplicaColors.text;
+            font-size: 14px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+
+    HorizontalLayout {
+        padding-left: root.use-message-insets ? 77px : 0px;
+
+        if root.exchange.status == "pending": HorizontalLayout {
+            alignment: start;
+            spacing: 10px;
+            Rectangle {
+                width: 16px;
+                height: 20px;
+                property <angle> sweep: root.reduced-motion ? 0deg : 360deg * mod(animation-tick(), 1s) / 1s;
+                for index in 12: Rectangle {
+                    width: 1.6px;
+                    height: 1.6px;
+                    property <angle> angle: parent.sweep + index * 30deg;
+                    x: 7.2px + cos(self.angle) * 7px;
+                    y: 11.2px + sin(self.angle) * 7px;
+                    border-radius: 0.8px;
+                    background: #d4d4d4;
+                }
+            }
+            VerticalLayout {
+                alignment: start;
+                spacing: 8px;
+                Text {
+                    text: "Агент готовит ответ...";
+                    color: ReplicaColors.text;
+                    font-size: 20px;
+                    font-weight: 600;
+                    wrap: word-wrap;
+                }
+                Text {
+                    text: "Тезис, объяснение и пример появятся здесь.";
+                    color: ReplicaColors.muted;
+                    font-size: 13px;
+                    wrap: word-wrap;
+                }
+                HorizontalLayout {
+                    alignment: start;
+                    ChatButton {
+                        label: "Остановить";
+                        caption: "Остановить";
+                        clicked => { root.stop(); }
+                    }
+                }
+            }
+        }
+
+        if root.exchange.status == "error": Rectangle {
+            background: #fbbf241a;
+            border-width: 1px;
+            border-color: #fbbf2459;
+            border-radius: 12px;
+            VerticalLayout {
+                padding: 14px;
+                spacing: 10px;
+                Text {
+                    text: "Не удалось получить ответ.";
+                    font-size: 18px;
+                    font-weight: 600;
+                    color: ReplicaColors.amber;
+                    wrap: word-wrap;
+                }
+                Text {
+                    text: "Повторите запрос. Если ошибка сохранится, проверьте подключение агента.";
+                    font-size: 13px;
+                    color: ReplicaColors.text;
+                    wrap: word-wrap;
+                }
+                HorizontalLayout {
+                    alignment: start;
+                    spacing: 7px;
+                    ChatButton {
+                        label: "Повторить";
+                        caption: "Повторить";
+                        primary: true;
+                        enabled: !root.busy;
+                        clicked => { root.retry(root.exchange.id); }
+                    }
+                    ChatButton {
+                        label: "Настройки агента";
+                        caption: "Настройки агента";
+                        clicked => { root.open-settings(); }
+                    }
+                }
+            }
+        }
+
+        if root.exchange.status == "complete": Rectangle {
+            background: root.compact ? transparent : ReplicaColors.panel;
+            border-width: root.compact ? 0px : 1px;
+            border-color: #262626;
+            border-radius: 16px;
+            VerticalLayout {
+                padding: root.compact ? 0px : 15px;
+                spacing: root.compact ? 13px : 16px;
+                Rectangle {
+                    border-radius: 12px;
+                    background: #fbbf241a;
+                    min-height: root.compact ? summary-content.preferred-height : max(84px, summary-content.preferred-height + 8px);
+                    Rectangle {
+                        x: 0px;
+                        width: 2px;
+                        y: root.compact ? 12px : 16px;
+                        height: parent.height - self.y * 2;
+                        background: ReplicaColors.amber;
+                    }
+                    summary-content := VerticalLayout {
+                        padding-left: root.compact ? 13px : 16px;
+                        padding-right: 12px;
+                        padding-top: root.compact ? 10px : 13px;
+                        padding-bottom: root.compact ? 11px : 13px;
+                        spacing: root.compact ? 6px : 8px;
+                        Text {
+                            text: "Тезис";
+                            font-size: 12px;
+                            font-weight: 600;
+                            color: ReplicaColors.amber;
+                        }
+                        Text {
+                            text: root.exchange.summary;
+                            font-size: root.compact ? 18px : 24px;
+                            font-weight: 700;
+                            color: ReplicaColors.text;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+                if root.exchange.explanation != "": AnswerSection {
+                    compact: root.compact;
+                    title: "Объяснение";
+                    body: root.exchange.explanation;
+                }
+                if root.exchange.example != "": VerticalLayout {
+                    spacing: 12px;
+                    if !root.compact: Rectangle { height: 1px; background: #262626; }
+                    AnswerSection {
+                        compact: root.compact;
+                        title: "Пример";
+                        body: root.exchange.example;
+                    }
+                }
+                HorizontalLayout {
+                    alignment: start;
+                    ChatButton {
+                        label: "Копировать";
+                        caption: "Копировать";
+                        icon: @image-url("assets/chat/copy.svg");
+                        show-icon: true;
+                        clicked => { root.copy-answer(root.exchange.id); }
+                    }
+                    if root.copy-notice != "": Text {
+                        text: root.copy-notice;
+                        color: ReplicaColors.muted;
+                        font-size: 12px;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component ChatPage inherits Rectangle {
+    background: #000000;
+    min-width: 0px;
+    preferred-width: 460px;
+    max-width: 32768px;
+    horizontal-stretch: 1;
+    forward-focus: editor;
+
+    in property <bool> compact: false;
+    in property <[ChatRow]> rows;
+    in-out property <string> draft;
+    in property <bool> pending;
+    in property <string> session-usage;
+    in property <string> notice;
+    in property <[SelectOption]> models;
+    in property <int> model-index;
+    in property <string> company;
+    in property <image> company-logo;
+    in property <bool> reduced-motion;
+    in property <bool> ready: true;
+    in property <string> format: "Структурированный";
+    in property <bool> has-resume: false;
+    in property <bool> include-resume;
+    in property <bool> include-questions;
+    in property <int> question-count;
+    callback draft-changed(string);
+    callback submit();
+    callback stop();
+    callback retry(int);
+    callback copy-answer(int);
+
+    callback open-materials();
+    callback open-settings();
+    callback change-window();
+    callback select-model(string);
+    callback select-format(string);
+    callback toggle-resume(bool);
+    callback toggle-questions(bool);
+    property <int> copy-notice-id: 0;
+    property <bool> wrap-model-controls: !root.compact && root.width < 570px;
+    property <bool> wrap-composer-tools: !root.compact && root.width < 600px;
+
+    public function scroll-to-latest() {
+        history.viewport-y = min(0px, history.visible-height - history.viewport-height);
+    }
+
+    Rectangle {
+        border-width: root.compact ? 1px : 0px;
+        border-color: ReplicaColors.edge;
+        border-radius: root.compact ? 12px : 0px;
+        clip: true;
+        VerticalLayout {
+            padding: root.compact ? 1px : 0px;
+
+            Rectangle {
+                min-height: root.wrap-model-controls ? 96px : 64px;
+                preferred-height: self.min-height;
+                vertical-stretch: 0;
+                background: root.compact ? ReplicaColors.panel : #000000;
+                HorizontalLayout {
+                    height: root.wrap-model-controls ? 52px : parent.height;
+                    y: 0px;
+                    padding-left: root.compact ? 10px : 28px;
+                    padding-right: self.padding-left;
+                    spacing: root.compact ? 6px : 12px;
+                    if root.compact: Rectangle {
+                        width: 32px;
+                        Mark {
+                            x: 0px;
+                            y: (parent.height - self.height) / 2;
+                            width: 32px;
+                            height: 32px;
+                        }
+                    }
+                    Text {
+                        text: root.compact ? "Реплика" : "Собеседование";
+                        color: ReplicaColors.text;
+                        font-size: 14px;
+                        font-weight: 500;
+                        vertical-alignment: center;
+                        horizontal-stretch: 0;
+                        min-width: 0px;
+                        overflow: elide;
+                    }
+                    if root.company != "" && root.width >= 360px: Rectangle {
+                        min-width: 64px;
+                        preferred-width: min(company-layout.preferred-width, root.compact ? 145px : 192px);
+                        max-width: root.compact ? 145px : 192px;
+                        horizontal-stretch: 0;
+                        Rectangle {
+                            y: (parent.height - self.height) / 2;
+                            height: 30px;
+                            border-radius: 8px;
+                            border-width: 1px;
+                            border-color: #fbbf2433;
+                            background: #fbbf2414;
+                            company-layout := HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                spacing: 6px;
+                                Rectangle {
+                                    width: 20px;
+                                    CompanyBadge {
+                                        y: (parent.height - self.height) / 2;
+                                        width: 20px;
+                                        height: 20px;
+                                        radius: 6px;
+                                        initials-size: 9px;
+                                        logo: root.company-logo;
+                                        name: root.company;
+                                        highlighted: badge-hover.has-hover;
+                                        reduced-motion: root.reduced-motion;
+                                    }
+                                }
+                                Text {
+                                    min-width: 0px;
+                                    text: root.company;
+                                    font-weight: 500;
+                                    font-size: 12px;
+                                    color: #fcd34d;
+                                    overflow: elide;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            badge-hover := TouchArea {}
+                        }
+                    }
+                    Rectangle { horizontal-stretch: 1; min-width: 0px; }
+                    Rectangle {
+                        min-width: usage-layout.preferred-width;
+                        preferred-width: usage-layout.preferred-width;
+                        horizontal-stretch: 0;
+                        Rectangle {
+                            x: 0px;
+                            y: (parent.height - self.height) / 2;
+                            width: parent.width;
+                            height: 34px;
+                            border-radius: 8px;
+                            border-width: 1px;
+                            border-color: #262626;
+                            background: #121212;
+                            usage-layout := HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                spacing: 8px;
+                                Rectangle {
+                                    width: 13px;
+                                    Image {
+                                        x: 0px;
+                                        y: (parent.height - self.height) / 2;
+                                        source: @image-url("assets/chat/usage.svg");
+                                        colorize: ReplicaColors.muted;
+                                        width: 13px;
+                                        height: 13px;
+                                    }
+                                }
+                                Text {
+                                    text: root.session-usage;
+                                    color: ReplicaColors.text;
+                                    font-size: 12px;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                    if !root.compact && !root.wrap-model-controls: Rectangle {
+                        width: 156px;
+                        ChatModelSelect {
+                            y: (parent.height - self.height) / 2;
+                            width: parent.width;
+                            options: root.models;
+                            current-index: root.model-index;
+                            selected(value) => { root.select-model(value); }
+                        }
+                    }
+                    Rectangle {
+                        width: root.compact || root.width < 430px ? 34px : 157px;
+                        ChatButton {
+                            x: 0px;
+                            y: (parent.height - self.height) / 2;
+                            width: parent.width;
+                            height: 32px;
+                            label: root.compact ? "Открыть основной чат" : "Компактное окно";
+                            caption: root.compact || root.width < 430px ? "" : "Компактное окно";
+                            icon: @image-url("assets/chat/main-chat.svg");
+                            icon-color: ReplicaColors.amber;
+                            show-icon: true;
+                            clicked => { root.change-window(); }
+                        }
+                    }
+                }
+
+                if root.wrap-model-controls: ChatModelSelect {
+                    x: 24px;
+                    y: 52px;
+                    width: min(200px, parent.width - 48px);
+                    options: root.models;
+                    current-index: root.model-index;
+                    selected(value) => { root.select-model(value); }
+                }
+
+                Rectangle {
+                    y: parent.height - 1px;
+                    height: 1px;
+                    background: #262626;
+                }
+            }
+
+            VerticalLayout {
+                padding-left: root.compact ? 15px : max(16px, min(28px, (root.width - 520px) / 2), (root.width - 862px) / 2);
+                padding-right: self.padding-left;
+                padding-top: root.compact ? 7px : 0px;
+                padding-bottom: 19px;
+                spacing: root.compact ? 12px : 16px;
+                vertical-stretch: 1;
+
+                Rectangle {
+                    vertical-stretch: 1;
+                    min-height: 0px;
+                    clip: true;
+
+                    if root.rows.length == 0: VerticalLayout {
+                        alignment: center;
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        spacing: 18px;
+                        HorizontalLayout {
+                            alignment: center;
+                            Mark { width: 44px; height: 44px; }
+                        }
+                        Text {
+                            color: ReplicaColors.text;
+                            text: "Введите вопрос интервьюера";
+                            font-size: root.compact ? 20px : 32px;
+                            font-weight: 700;
+                            horizontal-alignment: center;
+                            wrap: word-wrap;
+                        }
+                        Text {
+                            color: ReplicaColors.muted;
+                            text: root.ready ? "Реплика соберёт ответ из тезиса, объяснения и примера." : "Подключите модель, чтобы начать чат.";
+                            font-size: 14px;
+                            horizontal-alignment: center;
+                            wrap: word-wrap;
+                        }
+                        if !root.ready: HorizontalLayout {
+                            alignment: center;
+                            ChatButton {
+                                caption: "Подключить модель";
+                                label: "Подключить модель";
+                                clicked => { root.open-settings(); }
+                            }
+                        }
+                        if !root.compact && root.ready: HorizontalLayout {
+                            alignment: center;
+                            InterviewLabel {}
+                        }
+                    }
+
+                    history := ScrollView {
+                        x: 0px;
+                        y: 0px;
+                        width: parent.width;
+                        height: parent.height;
+                        visible: root.rows.length > 0;
+                        horizontal-scrollbar-policy: always-off;
+                        viewport-width: self.visible-width;
+                        viewport-height: max(self.visible-height, messages.preferred-height);
+                        changed viewport-height => { root.scroll-to-latest(); }
+
+                        messages := VerticalLayout {
+                            x: 0px;
+                            y: 0px;
+                            width: history.visible-width;
+                            height: self.preferred-height;
+                            padding-bottom: 10px;
+                            padding-top: root.compact ? 0px : 40px;
+                            spacing: root.compact ? 22px : 24px;
+                            alignment: start;
+                            if !root.compact: HorizontalLayout { alignment: start; InterviewLabel {} }
+                            for entry in root.rows: ExchangeView {
+                                exchange: entry;
+                                copy-notice: entry.id == root.copy-notice-id ? root.notice : "";
+                                busy: root.pending;
+                                compact: root.compact;
+                                reduced-motion: root.reduced-motion;
+                                open-settings => { root.open-settings(); }
+                                stop => { root.stop(); editor.focus(); }
+                                retry(id) => { root.retry(id); editor.focus(); }
+                                copy-answer(id) => { root.copy-notice-id = id; root.copy-answer(id); }
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    min-height: composer.preferred-height;
+                    preferred-height: composer.preferred-height;
+                    vertical-stretch: 0;
+                    Rectangle {
+                        border-radius: 18px;
+                        background: #0b0b0b;
+                        drop-shadow-offset-y: 4px;
+                        drop-shadow-blur: 14px;
+                        drop-shadow-color: #fbbf2426;
+                    }
+                    Rectangle {
+                        border-radius: 18px;
+                        background: #0b0b0b;
+                        drop-shadow-blur: 2px;
+                        drop-shadow-color: #fbbf2454;
+                    }
+                    Rectangle {
+                        x: parent.width * 0.28;
+                        y: -4px;
+                        width: parent.width * 0.24;
+                        height: 8px;
+                        border-radius: 4px;
+                        background: @radial-gradient(circle, #fbbf243d 0%, transparent 82%);
+                    }
+                    Rectangle {
+                        x: parent.width * 0.61;
+                        y: parent.height - 4px;
+                        width: parent.width * 0.24;
+                        height: 8px;
+                        border-radius: 4px;
+                        background: @radial-gradient(circle, #fbbf243d 0%, transparent 82%);
+                    }
+                    Rectangle {
+                        background: #0b0b0b;
+                        border-radius: 18px;
+                        border-width: 1px;
+                        border-color: ReplicaColors.edge;
+
+                        composer := VerticalLayout {
+                            padding: 11px;
+                            spacing: 12px;
+
+                            HorizontalLayout {
+                                padding-left: 6px;
+                                padding-right: 6px;
+                                spacing: 8px;
+
+                                Rectangle {
+                                    width: 14px;
+                                    Image {
+                                        x: 0px;
+                                        y: (min(parent.height, 30px) - self.height) / 2;
+                                        source: @image-url("assets/chat/terminal.svg");
+                                        colorize: ReplicaColors.muted;
+                                        width: 14px;
+                                        height: 14px;
+                                    }
+                                }
+
+                                Rectangle {
+                                    min-height: max(28px, min(108px, editor.preferred-height)) + 2px;
+                                    preferred-height: self.min-height;
+                                    horizontal-stretch: 1;
+                                    border-radius: 4px;
+                                    border-width: editor.has-focus ? 2px : 0px;
+                                    border-color: ReplicaColors.amber;
+                                    input-scroll := ScrollView {
+                                        x: 4px;
+                                        y: 1px;
+                                        width: parent.width - 8px;
+                                        height: parent.height - 2px;
+                                        horizontal-scrollbar-policy: always-off;
+                                        vertical-scrollbar-policy: always-off;
+                                        viewport-width: self.visible-width;
+                                        viewport-height: max(self.visible-height, editor.preferred-height);
+
+                                        editor := TextInput {
+                                            text <=> root.draft;
+                                            width: input-scroll.visible-width;
+                                            height: max(28px, self.preferred-height);
+                                            vertical-alignment: center;
+                                            font-size: 14px;
+                                            color: ReplicaColors.text;
+                                            selection-background-color: #fbbf2466;
+                                            selection-foreground-color: #ffffff;
+                                            single-line: false;
+                                            wrap: word-wrap;
+                                            accessible-label: "Вопрос";
+                                            accessible-placeholder-text: "Введите вопрос интервьюера";
+                                            edited => { root.draft-changed(self.text); }
+                                            key-pressed(event) => {
+                                            // Slint 1.16 matches these shortcuts by their Latin characters.
+                                            if event.modifiers.control && !event.modifiers.shift && !event.modifiers.alt && self.preedit-text == "" {
+                                                if event.text == "ф" || event.text == "Ф" {
+                                                    self.select-all();
+                                                    return accept;
+                                                }
+                                                if event.text == "с" || event.text == "С" {
+                                                    self.copy();
+                                                    return accept;
+                                                }
+                                                if event.text == "м" || event.text == "М" {
+                                                    self.paste();
+                                                    return accept;
+                                                }
+                                                if event.text == "ч" || event.text == "Ч" {
+                                                    self.cut();
+                                                    return accept;
+                                                }
+                                            }
+                                                if event.text == Key.Return && !event.modifiers.shift && self.preedit-text == "" {
+                                                    if root.ready && !root.pending && root.draft != "" { root.submit(); }
+                                                    return accept;
+                                                }
+                                                return reject;
+                                            }
+                                            cursor-position-changed(position) => {
+                                                if position.y + input-scroll.viewport-y < 0px {
+                                                    input-scroll.viewport-y = min(0px, -position.y);
+                                                } else if position.y + input-scroll.viewport-y > input-scroll.visible-height - 20px {
+                                                    input-scroll.viewport-y = min(0px, input-scroll.visible-height - position.y - 20px);
+                                                }
+                                            }
+                                        }
+                                        if root.draft == "" && editor.preedit-text == "": Text {
+                                            width: input-scroll.visible-width;
+                                            height: 28px;
+                                            text: "Введите вопрос интервьюера";
+                                            vertical-alignment: center;
+                                            color: ReplicaColors.muted;
+                                            font-size: 14px;
+                                            overflow: elide;
+                                        }
+                                    }
+                                }
+                            }
+                            if !root.compact: Rectangle { height: 1px; background: #262626; }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                ChatButton {
+                                    width: 34px;
+                                    label: "Открыть материалы";
+                                    icon: @image-url("assets/chat/plus.svg");
+                                    show-icon: true;
+                                    clicked => { root.open-materials(); }
+                                }
+                                ChatButton {
+                                    label: "Резюме";
+                                    caption: "Резюме";
+                                    icon: @image-url("assets/chat/resume.svg");
+                                    show-icon: true;
+                                    enabled: root.has-resume;
+                                    selected: root.include-resume && root.has-resume;
+                                    clicked => { root.toggle-resume(!root.include-resume); }
+                                }
+                                if !root.compact && !root.wrap-composer-tools: ChatQuestionsButton {
+                                    count: root.question-count;
+                                    selected: root.include-questions && root.question-count > 0;
+                                    clicked => { root.toggle-questions(!root.include-questions); }
+                                }
+                                if !root.compact && !root.wrap-composer-tools: ChatFormatSelect {
+                                    format: root.format;
+                                    selected(value) => { root.select-format(value); }
+                                }
+                                Rectangle { horizontal-stretch: 1; }
+                                ChatButton {
+                                    label: "Отправить";
+                                    caption: "Enter ↵";
+                                    enabled: root.ready && !root.pending && root.draft != "";
+                                    clicked => { root.submit(); editor.focus(); }
+                                }
+                            }
+                            if root.wrap-composer-tools: HorizontalLayout {
+                                alignment: start;
+                                spacing: 8px;
+                                ChatQuestionsButton {
+                                    count: root.question-count;
+                                    selected: root.include-questions && root.question-count > 0;
+                                    clicked => { root.toggle-questions(!root.include-questions); }
+                                }
+                                ChatFormatSelect {
+                                    format: root.format;
+                                    selected(value) => { root.select-format(value); }
+                                }
+                            }
+                        }
+                    }
+                }
+                if !root.compact: HorizontalLayout {
+                    alignment: start;
+                    spacing: 7px;
+                    Rectangle {
+                        width: 14px;
+                        Image {
+                            y: (parent.height - self.height) / 2;
+                            width: 14px;
+                            height: 14px;
+                            source: @image-url("assets/chat/monitor.svg");
+                            colorize: ReplicaColors.muted;
+                        }
+                    }
+                    Text {
+                        text: "При демонстрации выберите рабочее окно в сервисе звонка.";
+                        color: ReplicaColors.muted;
+                        font-size: 13px;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+        }
+    }
+}

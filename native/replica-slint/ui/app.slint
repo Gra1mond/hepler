@@ -1,0 +1,367 @@
+import { Palette, ScrollView } from "std-widgets.slint";
+import "./assets/common/InterVariable.ttf";
+import { HomePage } from "home.slint";
+import { SettingsPage, ConnectionDialog } from "settings.slint";
+import { ChatPage, ChatRow } from "chat.slint";
+import { CompanyPicker, CompanyRow } from "company-picker.slint";
+import { ProfilePage } from "profile.slint";
+import { UsagePage } from "usage.slint";
+import { MaterialEditor, MaterialsPage, MaterialQuestion } from "materials.slint";
+import { InterviewsPage, InterviewCompanyCard, InterviewQuestionCard } from "interviews.slint";
+import { RecordsPage, ProfileNavigation, NavigationItem, NavigationRail } from "shell.slint";
+import { SelectOption } from "select.slint";
+import { UiText } from "foundation.slint";
+export { SelectOption, UiText, Palette, ChatRow, CompanyRow, MaterialQuestion, InterviewCompanyCard, InterviewQuestionCard, NavigationItem }
+
+export global DemoState {
+    in property <[SelectOption]> models;
+    in property <int> model-index;
+    in property <[string]> connected;
+    in property <string> format;
+    in property <string> company;
+    in property <image> company-logo;
+    in property <bool> reduced-motion;
+    in property <string> resume-name;
+    in property <bool> resume-has-text;
+    in property <bool> include-resume: true;
+    in property <bool> include-questions: true;
+    in property <[MaterialQuestion]> materials;
+    in property <bool> ready;
+
+    callback select-model(string);
+    callback select-format(string);
+    callback toggle-resume(bool);
+    callback toggle-questions(bool);
+    callback open-materials();
+    callback open-settings();
+}
+
+component ChatSurface inherits Window {
+    default-font-family: "Inter";
+    default-font-size: 14px;
+
+    background: #000;
+
+}
+
+export global ChatViewState {
+    in property <[ChatRow]> rows;
+    in-out property <string> draft;
+    in property <bool> pending;
+    in property <string> session-usage;
+    in property <string> notice;
+    callback draft-changed(string);
+    callback submit();
+    callback stop();
+    callback retry(int);
+    callback copy-answer(int);
+    callback change-window();
+}
+
+component Conversation inherits ChatPage {
+    models: DemoState.models;
+    model-index: DemoState.model-index;
+    format: DemoState.format;
+    company: DemoState.company;
+    company-logo: DemoState.company-logo;
+    reduced-motion: DemoState.reduced-motion;
+    has-resume: DemoState.resume-has-text;
+    include-resume: DemoState.include-resume;
+    include-questions: DemoState.include-questions;
+    question-count: DemoState.materials.length;
+    ready: DemoState.ready;
+    select-model(value) => { DemoState.select-model(value); }
+    select-format(value) => { DemoState.select-format(value); }
+    toggle-resume(value) => { DemoState.toggle-resume(value); }
+    toggle-questions(value) => { DemoState.toggle-questions(value); }
+    open-materials => { DemoState.open-materials(); }
+    open-settings => { DemoState.open-settings(); }
+}
+
+export component CompactWindow inherits ChatSurface {
+    title: "Реплика · Компактный чат";
+    preferred-width: 460px;
+    preferred-height: 680px;
+    min-width: 320px;
+    min-height: 360px;
+    public function reveal-latest() { chat.scroll-to-latest(); }
+    chat := Conversation {
+        compact: true;
+        rows: ChatViewState.rows;
+        draft <=> ChatViewState.draft;
+        pending: ChatViewState.pending;
+        session-usage: ChatViewState.session-usage;
+        notice: ChatViewState.notice;
+        draft-changed(value) => { ChatViewState.draft-changed(value); }
+        submit => { ChatViewState.submit(); }
+        stop => { ChatViewState.stop(); }
+        retry(id) => { ChatViewState.retry(id); }
+        copy-answer(id) => { ChatViewState.copy-answer(id); }
+        change-window => { ChatViewState.change-window(); }
+    }
+}
+
+export component MainWindow inherits ChatSurface {
+    title: "Реплика";
+    preferred-width: 1280px;
+    preferred-height: 900px;
+    min-width: 420px;
+    min-height: 500px;
+    in property <string> page: "home";
+    in property <string> title-label: "Главная";
+    in property <string> profile-tab;
+    in property <string> interview-kind: "overview";
+    in property <string> preferred-model;
+    in property <[NavigationItem]> navigation;
+    out property <[image]> navigation-icons: [
+        @image-url("assets/common/home.svg"), @image-url("assets/common/chat.svg"),
+        @image-url("assets/common/materials.svg"), @image-url("assets/common/settings.svg"),
+        @image-url("assets/common/records.svg"), @image-url("assets/common/profile.svg")
+    ];
+    in property <[CompanyRow]> companies;
+    in property <[InterviewCompanyCard]> interview-companies;
+    in property <[InterviewQuestionCard]> interview-questions;
+    in property <[InterviewQuestionCard]> dialogue;
+    in property <InterviewQuestionCard> active-question;
+    in property <InterviewCompanyCard> selected-company;
+    in property <string> interview-summary;
+    in property <bool> show-companies;
+    in-out property <bool> show-connection;
+    in-out property <string> settings-notice;
+    in property <string> material-issue;
+    private property <int> material-editor-index: -2;
+    private property <bool> companies-opened-from-home;
+    private property <int> home-focus-request;
+    in property <image> logo-preview;
+    in property <string> logo-filename;
+    in property <string> logo-error;
+    in property <bool> logo-loading;
+    in-out property <string> settings-format: DemoState.format;
+    callback navigate(string);
+    callback search(string);
+    callback begin-interview();
+    callback connect(string);
+    callback demo-error();
+    callback close-connection();
+    callback register();
+    callback upload-resume();
+    callback remove-resume();
+    callback import-questions();
+    callback save-question(int, string, string);
+    callback delete-question(int);
+    callback select-company(string);
+    callback dismiss-company();
+    callback add-company(string);
+    callback existing-company(string) -> string;
+    callback reset-logo-error();
+    callback choose-logo();
+    callback clear-logo();
+
+    private property <bool> narrow: self.width < 640px;
+    private property <length> rail-width: root.narrow ? 0px : 222px;
+    private property <length> rail-height: root.narrow ? 108px : 0px;
+
+    public function reveal-latest() { chat.scroll-to-latest(); }
+    public function reset-scroll() {
+        page-scroll.viewport-y = 0px;
+        root.material-editor-index = -2;
+    }
+
+    navigation-rail := NavigationRail {
+        x: 0px;
+        y: 0px;
+        width: root.narrow ? parent.width : root.rail-width;
+        height: root.narrow ? root.rail-height : parent.height;
+        narrow: root.narrow;
+        page: root.profile-tab != "" ? "profile" : root.page;
+        items: root.navigation;
+        navigate(value) => {
+            if value == "chat" { root.companies-opened-from-home = false; }
+            root.navigate(value);
+        }
+        search(value) => { root.search(value); }
+    }
+    content := Rectangle {
+        x: root.rail-width;
+        y: root.rail-height;
+        width: parent.width - self.x;
+        height: parent.height - self.y;
+
+        chat := Conversation {
+            visible: root.page == "chat";
+            rows: ChatViewState.rows;
+            draft <=> ChatViewState.draft;
+            pending: ChatViewState.pending;
+            session-usage: ChatViewState.session-usage;
+            notice: ChatViewState.notice;
+            draft-changed(value) => { ChatViewState.draft-changed(value); }
+            submit => { ChatViewState.submit(); }
+            stop => { ChatViewState.stop(); }
+            retry(id) => { ChatViewState.retry(id); }
+            copy-answer(id) => { ChatViewState.copy-answer(id); }
+            change-window => { ChatViewState.change-window(); }
+        }
+        Rectangle {
+            visible: root.page != "chat";
+            Rectangle {
+                y: 0px;
+                height: 64px;
+                Text {
+                    x: root.narrow ? 16px : 28px;
+                    height: 100%;
+                    text: root.title-label;
+                    color: #e5e5e5;
+                    vertical-alignment: center;
+                    font-weight: 500;
+                }
+                Rectangle { y: parent.height - 1px; height: 1px; background: #262626; }
+            }
+            page-scroll := ScrollView {
+                x: 0px;
+                y: 64px;
+                height: parent.height - self.y;
+                width: parent.width;
+                horizontal-scrollbar-policy: always-off;
+                viewport-width: self.visible-width;
+                viewport-height: max(self.visible-height, box.height);
+                box := Rectangle {
+                    width: root.page == "home" ? page-scroll.visible-width : min(952px, page-scroll.visible-width);
+                    x: (page-scroll.visible-width - self.width) / 2 - (root.page != "home" && root.width >= 1024px ? 5px : 0px);
+                    y: 0px;
+                    height: page-content.preferred-height;
+                    page-content := VerticalLayout {
+                        alignment: start;
+                        padding-left: root.narrow ? 16px : root.page == "home" && root.width >= 1024px ? 47px : 28px;
+                        padding-right: self.padding-left;
+                        padding-top: root.width < 1024px ? 32px : root.profile-tab != "" ? 30px : root.page == "home" ? 36px : 48px;
+                        padding-bottom: 32px;
+                        if root.profile-tab != "": VerticalLayout {
+                            padding-bottom: 28px;
+                            alignment: start;
+                            spacing: 16px;
+                            Text { text: "Профиль"; color: #e5e5e5; font-size: 36px; font-weight: 700; height: 40px; }
+                            ProfileNavigation {
+                                active: root.profile-tab;
+                                navigate(value) => { root.navigate(value); }
+                            }
+                        }
+                        if root.page == "home": HomePage {
+                            model: root.preferred-model;
+                            connected: DemoState.connected;
+                            reduced-motion: DemoState.reduced-motion;
+                            select-model(value) => { DemoState.select-model(value); }
+                            restore-start-focus: root.home-focus-request;
+                            start => {
+                                root.companies-opened-from-home = true;
+                                root.begin-interview();
+                            }
+                            open-materials => { root.navigate("materials"); }
+                        }
+                        if root.page == "settings": SettingsPage {
+                            model: root.preferred-model;
+                            connected: DemoState.connected;
+                            reduced-motion: DemoState.reduced-motion;
+                            format <=> root.settings-format;
+                            external-dialog: true;
+                            changed status-notice => { root.settings-notice = self.status-notice; }
+                            request-connection => { root.show-connection = true; }
+                            connect(value) => { root.connect(value); }
+                            save-format(value) => { DemoState.select-format(value); }
+                            close-connection => { root.close-connection(); }
+                            demo-error => { root.demo-error(); }
+                        }
+                        if root.page == "profile": ProfilePage { register => { root.register(); } }
+                        if root.page == "usage" || root.page == "usage/models": UsagePage {
+                            details: root.page == "usage/models";
+                            reduced-motion: DemoState.reduced-motion;
+                            navigate(value) => { root.navigate(value); }
+                        }
+                        if root.page == "materials" || root.page == "profile/materials": MaterialsPage {
+                            in-profile: root.page == "profile/materials";
+                            resume-name: DemoState.resume-name;
+                            resume-has-text: DemoState.resume-has-text;
+                            issue: root.material-issue;
+                            questions: DemoState.materials;
+                            upload-resume => { root.upload-resume(); }
+                            remove-resume => { root.remove-resume(); }
+                            import-questions => { root.import-questions(); }
+                            open-editor(index) => { root.material-editor-index = index; }
+                            navigate(value) => { root.navigate(value); }
+                        }
+                        if root.profile-tab == "profile/interviews": InterviewsPage {
+                            kind: root.interview-kind;
+                            reduced-motion: DemoState.reduced-motion;
+                            companies: root.interview-companies;
+                            questions: root.interview-questions;
+                            dialogue: root.dialogue;
+                            active-question: root.active-question;
+                            selected-company: root.selected-company;
+                            summary: root.interview-summary;
+                            navigate(value) => { root.navigate(value); }
+                        }
+                        if root.page == "records": RecordsPage {}
+                    }
+                }
+            }
+        }
+    }
+
+    if root.page == "settings" && root.settings-notice != "": Rectangle {
+        x: 24px; y: parent.height - self.height - 24px;
+        width: min(parent.width - 48px, toast.preferred-width);
+        height: toast.preferred-height;
+        border-radius: 12px;
+        border-width: 1px;
+        border-color: #404040;
+        background: #171717;
+        toast := VerticalLayout {
+            padding-left: 16px; padding-right: 16px; padding-top: 12px; padding-bottom: 12px;
+            Text { text: root.settings-notice; color: #e5e5e5; wrap: word-wrap; }
+        }
+    }
+
+    if root.material-editor-index >= -1: MaterialEditor {
+        index: root.material-editor-index;
+        initial-text: self.index >= 0 ? DemoState.materials[self.index].text : "";
+        initial-topic: self.index >= 0 ? DemoState.materials[self.index].topic : "";
+        save(index, text, topic) => {
+            root.material-editor-index = -2;
+            root.save-question(index, text, topic);
+        }
+        remove(index) => {
+            root.material-editor-index = -2;
+            root.delete-question(index);
+        }
+        dismiss => { root.material-editor-index = -2; }
+    }
+
+    if root.show-connection: ConnectionDialog {
+        model: root.preferred-model;
+        connect(value) => { root.connect(value); }
+        close => { root.close-connection(); }
+    }
+
+    if root.show-companies: CompanyPicker {
+        companies: root.companies;
+        reduced-motion: DemoState.reduced-motion;
+        logo-preview: root.logo-preview;
+        logo-filename: root.logo-filename;
+        logo-error: root.logo-error;
+        logo-loading: root.logo-loading;
+        select-company(value) => { root.select-company(value); }
+        dismiss => {
+            root.dismiss-company();
+            if root.companies-opened-from-home {
+                root.home-focus-request += 1;
+            } else {
+                navigation-rail.restore-focus("chat");
+            }
+        }
+        add-company(value) => { root.add-company(value); }
+        existing-company(value) => { return root.existing-company(value); }
+        reset-logo-error => { root.reset-logo-error(); }
+        choose-logo => { root.choose-logo(); }
+        clear-logo => { root.clear-logo(); }
+    }
+}
+export { RegistrationWindow } from "registration.slint";

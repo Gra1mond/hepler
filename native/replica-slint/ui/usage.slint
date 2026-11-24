@@ -1,0 +1,439 @@
+import { ProfileAction, ProfileColors } from "profile.slint";
+
+struct UsageSession { title: string, count: string, cost: string }
+struct UsageModel { key: string, name: string, requests: string, cost: string, sessions: [UsageSession] }
+
+component UsageStat inherits VerticalLayout {
+    in property <string> label;
+    in property <string> amount;
+    in property <string> period;
+    spacing: 5px;
+    Text { text: root.label; color: ProfileColors.muted; font-size: 13px; }
+    Text { text: root.amount; color: ProfileColors.text; font-size: 36px; font-weight: 600; }
+    Text { text: root.period; color: ProfileColors.muted; font-size: 12px; }
+}
+
+component DailyCosts inherits Rectangle {
+    accessible-role: image;
+    accessible-label: "График расходов с 13 по 19 ноября";
+    min-height: 175px;
+    preferred-height: 175px;
+    vertical-stretch: 0;
+    VerticalLayout {
+        spacing: 8px;
+        Text { text: "Расходы по дням, $"; color: ProfileColors.text; font-size: 14px; font-weight: 600; }
+        Rectangle {
+            height: 128px;
+            for label[index] in ["0,20", "0,10", "0,00"]: Text {
+                x: 0px;
+                y: 2px + index * 55px;
+                text: label;
+                color: ProfileColors.muted;
+                font-size: 12px;
+            }
+            plot := Rectangle {
+                x: 40px;
+                y: 9px;
+                width: max(1px, parent.width - 40px);
+                height: 110px;
+                for line[index] in [0, 1, 2]: Rectangle {
+                    y: index * 55px;
+                    height: 1px;
+                    background: #404040;
+                }
+                Path {
+                    x: 8px;
+                    width: max(1px, plot.width - 16px);
+                    height: 110px;
+                    viewbox-width: 600;
+                    viewbox-height: 110;
+                    fit: fill;
+                    commands: "M 0 66 C 50 66 50 22 100 22 C 150 22 150 55 200 55 C 250 55 250 77 300 77 C 350 77 350 44 400 44 C 450 44 450 5.5 500 5.5 C 550 5.5 550 38.5 600 38.5 L 600 110 L 0 110 Z";
+                    fill: @linear-gradient(180deg, #fbbf2438, #fbbf2400);
+                }
+                Path {
+                    x: 8px;
+                    width: max(1px, plot.width - 16px);
+                    height: 110px;
+                    viewbox-width: 600;
+                    viewbox-height: 110;
+                    fit: fill;
+                    commands: "M 0 66 C 50 66 50 22 100 22 C 150 22 150 55 200 55 C 250 55 250 77 300 77 C 350 77 350 44 400 44 C 450 44 450 5.5 500 5.5 C 550 5.5 550 38.5 600 38.5";
+                    stroke: ProfileColors.amber;
+                    stroke-width: 2px;
+                    fill: transparent;
+                }
+                Rectangle {
+                    x: plot.width - 11.5px;
+                    y: 35px;
+                    width: 7px;
+                    height: 7px;
+                    border-radius: 4px;
+                    background: ProfileColors.amber;
+                    drop-shadow-color: #fbbf2480;
+                    drop-shadow-blur: 7px;
+                }
+            }
+        }
+        Rectangle {
+            height: 16px;
+            for day[index] in ["13 ноя", "14 ноя", "15 ноя", "16 ноя", "17 ноя", "18 ноя", "19 ноя"]: Text {
+                x: 32px + index * max(0px, parent.width - 76px) / 6;
+                width: 44px;
+                text: day;
+                color: ProfileColors.muted;
+                font-size: parent.width < 360px ? 10px : 12px;
+                horizontal-alignment: center;
+            }
+        }
+    }
+}
+
+component UsageOverview inherits Rectangle {
+    callback details();
+    preferred-height: body.preferred-height;
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: ProfileColors.border;
+    background: #0a0a0a;
+    clip: true;
+
+    Rectangle {
+        y: -80px;
+        x: parent.width / 4;
+        width: parent.width / 2;
+        height: 156px;
+        background: @radial-gradient(circle, #fbbf2426, #fbbf2400 72%);
+    }
+    body := VerticalLayout {
+        padding: root.width >= 480px ? 24px : 16px;
+        spacing: 16px;
+
+        HorizontalLayout {
+            spacing: 12px;
+            Rectangle {
+                width: 40px;
+                height: 40px;
+                border-radius: 12px;
+                background: #fbbf241a;
+                Image {
+                    source: @image-url("assets/profile/usage.svg");
+                    colorize: ProfileColors.amber;
+                    width: 18px;
+                    height: 18px;
+                }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                horizontal-stretch: 1;
+                Text { text: "Использование API"; color: ProfileColors.text; font-size: 20px; font-weight: 600; }
+                Text {
+                    text: "13–19 ноября · Демонстрационные данные";
+                    color: ProfileColors.muted;
+                    font-size: 13px;
+                    wrap: word-wrap;
+                }
+            }
+        }
+        Rectangle { height: 1px; background: ProfileColors.border; }
+        HorizontalLayout {
+            spacing: root.width > 480px ? 24px : 10px;
+            UsageStat {
+                horizontal-stretch: 1;
+                label: "Запросы"; amount: "128"; period: "За 13–19 ноября";
+            }
+            Rectangle { width: 1px; background: ProfileColors.border; }
+            UsageStat {
+                horizontal-stretch: 1;
+                label: "Расходы по API"; amount: "0,84 $"; period: "Оценка за 13–19 ноября";
+            }
+        }
+        Rectangle { height: 8px; }
+        DailyCosts {}
+        Rectangle { height: 1px; background: ProfileColors.border; }
+        ProfileAction {
+            horizontal-stretch: 1;
+            label: "Детализация по моделям";
+            variant: "accent-outline";
+            trailing-icon: @image-url("assets/profile/arrow-right.svg");
+            show-trailing: true;
+            activated => { root.details(); }
+        }
+    }
+}
+
+component ModelCard inherits FocusScope {
+    in property <UsageModel> model;
+    in property <bool> selected;
+    in property <bool> reduced-motion;
+    callback selected-by-user();
+
+    property <bool> moving: hit.has-hover && !root.reduced-motion;
+    private property <bool> pointer-focus;
+    private property <bool> keyboard-focus: root.has-focus && !root.pointer-focus;
+    changed has-focus => { if !root.has-focus { root.pointer-focus = false; } }
+    property <image> logo: root.model.key == "gpt" ? @image-url("assets/profile/gpt.svg")
+        : root.model.key == "claude" ? @image-url("assets/profile/claude.svg")
+        : root.model.key == "gemini" ? @image-url("assets/profile/gemini.svg") : @image-url("assets/profile/mistral.svg");
+
+
+    accessible-role: button;
+    accessible-label: root.model.name + ", " + root.model.requests + ", " + root.model.cost;
+    accessible-checked: root.selected;
+    accessible-action-default => { root.selected-by-user(); }
+    key-pressed(event) => {
+        if event.text == Key.Return || event.text == " " {
+            root.selected-by-user();
+            return accept;
+        }
+        return reject;
+    }
+
+    Rectangle {
+        background: root.selected ? #15120d : #101010;
+        border-width: root.keyboard-focus ? 2px : 1px;
+        border-color: root.keyboard-focus ? ProfileColors.amber : root.selected ? #6d5118 : hit.has-hover ? #525252 : #2b2b2b;
+        border-radius: 16px;
+
+        VerticalLayout {
+            padding: 10px;
+            spacing: 10px;
+            art := Rectangle {
+                height: 112px;
+                clip: true;
+                border-width: 1px;
+                border-color: #ffffff0e;
+                border-radius: 11px;
+                background: root.selected ? #17130d : #141414;
+                Rectangle {
+                    x: parent.width * 0.12;
+                    y: 17px;
+                    width: parent.width * 0.76;
+                    height: parent.height - 34px;
+                    background: @radial-gradient(circle, root.selected ? #fbbf2440 : #aaaaaa22, transparent 67%);
+                }
+                for right in [false, true]: Rectangle {
+                    x: art.width / 2 - 24px + (root.moving ? (right ? 15px : -15px) : (right ? 7px : -6px));
+                    y: 32px + (root.moving ? -3px : right ? -7px : -5px);
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 12px;
+                    border-width: 1px;
+                    border-color: root.selected ? #fbbf2433 : #525252;
+                    background: root.selected ? #fbbf241a : #262626;
+                    transform-rotation: root.moving ? (right ? 16deg : -16deg) : (right ? 8deg : -7deg);
+                    animate x, y, transform-rotation {
+                        duration: root.reduced-motion ? 0ms : 260ms;
+                        easing: cubic-bezier(0.23, 1, 0.32, 1);
+                    }
+                }
+                Rectangle {
+                    x: art.width / 2 - 28px;
+                    y: root.moving ? 26px : 28px;
+                    width: 56px;
+                    height: 56px;
+                    transform-scale-x: root.moving ? 96% : 100%;
+                    transform-scale-y: root.moving ? 96% : 100%;
+                    animate y, transform-scale-x, transform-scale-y {
+                        duration: root.reduced-motion ? 0ms : root.moving ? 200ms : 260ms;
+                        easing: cubic-bezier(0.23, 1, 0.32, 1);
+                    }
+                    border-radius: 16px;
+                    border-width: 1px;
+                    border-color: root.selected ? #fbbf2440 : #404040;
+                    background: root.selected ? #171717 : #262626;
+                    drop-shadow-color: #00000055;
+                    drop-shadow-blur: 15px;
+                    drop-shadow-offset-y: 10px;
+                    Image { source: root.logo; width: 28px; height: 28px; }
+                }
+                if root.selected: Rectangle {
+                    x: art.width - 28px;
+                    y: 8px;
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 10px;
+                    border-width: 1px;
+                    border-color: #fbbf244d;
+                    background: #fbbf241a;
+                    Image { source: @image-url("assets/profile/check.svg"); colorize: ProfileColors.amber; width: 10px; height: 10px; }
+                }
+            }
+            VerticalLayout {
+                padding-left: 4px;
+                padding-right: 4px;
+                spacing: 8px;
+                Text { text: root.model.name; color: ProfileColors.text; font-size: 18px; font-weight: 600; }
+                Rectangle { height: 1px; background: ProfileColors.border; }
+                HorizontalLayout {
+                    alignment: space-between;
+                    spacing: 6px;
+                    Text { text: root.model.requests; color: ProfileColors.muted; font-size: 13px; }
+                    Text { text: root.model.cost; color: root.selected ? ProfileColors.amber : ProfileColors.text; font-size: 14px; font-weight: 600; }
+                }
+            }
+        }
+    }
+    hit := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.pointer-focus = true; root.focus(); root.selected-by-user(); }
+    }
+}
+
+component CostCard inherits Rectangle {
+    in property <UsageSession> session;
+    border-width: 1px;
+    border-radius: 12px;
+    border-color: ProfileColors.border;
+    background: #121212;
+    VerticalLayout {
+        padding: 14px;
+        spacing: 12px;
+        HorizontalLayout {
+            spacing: 10px;
+            Rectangle {
+                width: 32px;
+                height: 32px;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: #404040;
+                background: #262626;
+                Image { source: @image-url("assets/profile/message.svg"); colorize: ProfileColors.muted; width: 13px; height: 13px; }
+            }
+            Text {
+                text: root.session.title;
+                color: ProfileColors.text;
+                font-size: 14px;
+                font-weight: 500;
+                vertical-alignment: center;
+                wrap: word-wrap;
+                horizontal-stretch: 1;
+            }
+        }
+        Rectangle { height: 1px; background: ProfileColors.border; }
+        HorizontalLayout {
+            alignment: space-between;
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: "Запросы"; color: ProfileColors.muted; font-size: 12px; }
+                Text { text: root.session.count; color: ProfileColors.text; font-size: 18px; font-weight: 600; }
+            }
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: "Расходы"; color: ProfileColors.muted; font-size: 12px; horizontal-alignment: right; }
+                Text { text: root.session.cost; color: ProfileColors.text; font-size: 18px; font-weight: 600; horizontal-alignment: right; }
+            }
+        }
+    }
+}
+
+export component UsagePage inherits Rectangle {
+    in property <bool> details;
+    in property <bool> reduced-motion;
+    callback navigate(string);
+
+    property <int> selected-model: 1;
+    property <[UsageModel]> models: [
+        { key: "gpt", name: "GPT", requests: "54 запроса", cost: "0,40 $", sessions: [
+            { title: "Подготовка к собеседованию", count: "24", cost: "0,18 $" },
+            { title: "Разбор вопросов", count: "18", cost: "0,13 $" },
+            { title: "Практика ответов", count: "12", cost: "0,09 $" }
+        ] },
+        { key: "claude", name: "Claude", requests: "38 запросов", cost: "0,28 $", sessions: [
+            { title: "Архитектура приложения", count: "16", cost: "0,12 $" },
+            { title: "Разбор резюме", count: "12", cost: "0,09 $" },
+            { title: "Системный дизайн", count: "10", cost: "0,07 $" }
+        ] },
+        { key: "gemini", name: "Gemini", requests: "24 запроса", cost: "0,10 $", sessions: [
+            { title: "Подготовка материалов", count: "10", cost: "0,04 $" },
+            { title: "Разбор вопросов", count: "8", cost: "0,04 $" },
+            { title: "Практика ответов", count: "6", cost: "0,02 $" }
+        ] },
+        { key: "mistral", name: "Mistral", requests: "12 запросов", cost: "0,06 $", sessions: [
+            { title: "Технические вопросы", count: "5", cost: "0,03 $" },
+            { title: "Разбор резюме", count: "4", cost: "0,02 $" },
+            { title: "Практика ответов", count: "3", cost: "0,01 $" }
+        ] }
+    ];
+    property <[UsageSession]> sessions: root.models[root.selected-model].sessions;
+    property <int> model-columns: root.width >= 760px ? 4 : root.width >= 340px ? 2 : 1;
+    property <int> session-columns: root.width >= 720px ? 3 : 1;
+
+    preferred-height: body.preferred-height;
+    changed details => { if root.details { root.selected-model = 1; } }
+
+    body := VerticalLayout {
+        spacing: 24px;
+        VerticalLayout {
+            spacing: 12px;
+            Text { text: "История использования"; color: ProfileColors.text; font-size: 24px; font-weight: 600; wrap: word-wrap; }
+            Text {
+                text: root.details ? "Выберите модель, чтобы посмотреть расходы по чатам." : "Запросы и расходы на ответы моделей.";
+                color: ProfileColors.muted;
+                font-size: 15px;
+                wrap: word-wrap;
+            }
+        }
+        if !root.details: UsageOverview { details => { root.navigate("usage/models"); } }
+        if root.details: VerticalLayout {
+            spacing: 24px;
+            HorizontalLayout {
+                alignment: start;
+                ProfileAction {
+                    label: "К обзору";
+                    variant: "link";
+                    button-height: 22px;
+                    font-size: 13px;
+                    leading-icon: @image-url("assets/profile/arrow-left.svg");
+                    show-leading: true;
+                    activated => { root.navigate("usage"); }
+                }
+            }
+            VerticalLayout {
+                spacing: 12px;
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text { text: "Модели"; color: ProfileColors.text; font-size: 18px; font-weight: 600; horizontal-stretch: 1; }
+                    Text { text: "13–19 ноября · Демонстрационные данные"; color: ProfileColors.muted; font-size: 13px; horizontal-alignment: right; wrap: word-wrap; }
+                }
+                model-grid := Rectangle {
+                    property <length> card-width: (self.width - 16px * (root.model-columns - 1)) / root.model-columns;
+                    property <int> card-rows: ceil(root.models.length / root.model-columns);
+                    min-height: 214px * card-rows + 16px * (card-rows - 1);
+                    for model[index] in root.models: ModelCard {
+                        x: mod(index, root.model-columns) * (model-grid.card-width + 16px);
+                        y: floor(index / root.model-columns) * 230px;
+                        width: model-grid.card-width;
+                        height: 214px;
+                        model: model;
+                        selected: index == root.selected-model;
+                        reduced-motion: root.reduced-motion;
+                        selected-by-user => { root.selected-model = index; }
+                    }
+                }
+            }
+            VerticalLayout {
+                spacing: 5px;
+                Text { text: "Расходы по чатам"; color: ProfileColors.text; font-size: 24px; font-weight: 600; }
+                Text {
+                    text: root.models[root.selected-model].name + " · " + root.models[root.selected-model].requests + " · " + root.models[root.selected-model].cost;
+                    color: ProfileColors.muted;
+                    font-size: 14px;
+                }
+                Rectangle { height: 11px; }
+                session-grid := Rectangle {
+                    property <length> card-width: (self.width - 16px * (root.session-columns - 1)) / root.session-columns;
+                    property <int> card-rows: ceil(root.sessions.length / root.session-columns);
+                    min-height: 148px * card-rows + 16px * (card-rows - 1);
+                    for session[index] in root.sessions: CostCard {
+                        x: mod(index, root.session-columns) * (session-grid.card-width + 16px);
+                        y: floor(index / root.session-columns) * 164px;
+                        width: session-grid.card-width;
+                        height: 148px;
+                        session: session;
+                    }
+                }
+            }
+        }
+    }
+}

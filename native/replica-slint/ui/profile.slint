@@ -1,0 +1,173 @@
+export global ProfileColors {
+    out property <color> text: #e5e5e5;
+    out property <color> muted: #a3a3a3;
+    out property <color> amber: #fbbf24;
+    out property <color> border: #262626;
+    out property <color> surface: #121212;
+}
+
+export component ProfileAction inherits FocusScope {
+    in property <string> label;
+    in property <string> accessibility-label: root.label;
+    in property <string> variant: "secondary";
+    in property <image> leading-icon;
+    in property <image> trailing-icon;
+    in property <bool> show-leading: false;
+    in property <bool> show-trailing: false;
+    in property <color> icon-color: root.variant == "primary" ? #0a0a0a : root.foreground;
+    in property <length> icon-size: 15px;
+    in property <length> font-size: 14px;
+    in property <length> button-height: 40px;
+    callback activated();
+
+    property <bool> bare: root.variant == "link" || root.variant == "accent-link";
+    property <color> foreground: root.variant == "primary" ? #0a0a0a
+        : root.variant == "accent-link" || root.variant == "accent-outline" ? ProfileColors.amber
+        : root.variant == "link" && !hit.has-hover ? ProfileColors.muted : ProfileColors.text;
+
+    min-height: root.button-height;
+    preferred-height: root.button-height;
+    min-width: content.min-width;
+    preferred-width: content.preferred-width;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    accessible-role: button;
+    accessible-label: root.accessibility-label;
+    accessible-action-default => { if root.enabled { root.activated(); } }
+
+    key-pressed(event) => {
+        if root.enabled && (event.text == Key.Return || event.text == " ") {
+            root.activated();
+            return accept;
+        }
+        return reject;
+    }
+
+    Rectangle {
+        border-radius: root.bare ? 4px : 8px;
+        border-width: root.has-focus ? 2px : root.bare || root.variant == "ghost" ? 0px : 1px;
+        border-color: root.has-focus ? ProfileColors.amber
+            : root.variant == "primary" ? ProfileColors.amber
+            : root.variant == "accent-outline" ? #fbbf2459
+            : hit.has-hover ? #525252 : #404040;
+        background: root.variant == "primary" ? (hit.has-hover ? #fcd34d : ProfileColors.amber)
+            : root.variant == "accent-outline" ? (hit.has-hover ? #fbbf241a : transparent)
+            : root.bare ? transparent
+            : hit.has-hover ? #262626
+            : root.variant == "ghost" ? transparent : #171717;
+        opacity: root.enabled ? 1.0 : 0.48;
+
+        content := HorizontalLayout {
+            alignment: center;
+            padding-left: root.bare ? 0px : 15px;
+            padding-right: root.bare ? 0px : 15px;
+            spacing: 8px;
+            if root.show-leading: Image {
+                y: (content.height - self.height) / 2;
+                width: root.icon-size;
+                height: root.icon-size;
+                source: root.leading-icon;
+                colorize: root.icon-color;
+            }
+            if root.label != "": Text {
+                text: root.label;
+                color: root.foreground;
+                font-size: root.font-size;
+                font-weight: root.variant == "link" ? 400 : 500;
+                vertical-alignment: center;
+            }
+            if root.show-trailing: Image {
+                y: (content.height - self.height) / 2;
+                width: root.icon-size;
+                height: root.icon-size;
+                source: root.trailing-icon;
+                colorize: root.icon-color;
+            }
+        }
+
+        hit := TouchArea {
+            enabled: root.enabled;
+            mouse-cursor: root.enabled ? pointer : default;
+            clicked => { root.focus(); root.activated(); }
+        }
+    }
+}
+
+export component ProfilePage inherits Rectangle {
+    in property <string> account-name: "Анна Петрова";
+    in property <string> account-email: "anna@example.com";
+    in property <string> account-initials: "АП";
+    callback register();
+    callback navigate(string);
+
+    property <bool> wide: self.width >= 420px;
+    preferred-height: body.preferred-height;
+
+    body := VerticalLayout {
+        spacing: 20px;
+        Text {
+            text: "Личные данные";
+            color: ProfileColors.text;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        Rectangle {
+            min-height: card.preferred-height;
+            background: ProfileColors.surface;
+            border-width: 1px;
+            border-color: ProfileColors.border;
+            border-radius: 16px;
+
+            card := HorizontalLayout {
+                padding: root.wide ? 24px : 20px;
+                spacing: root.wide ? 28px : 20px;
+
+                Rectangle {
+                    width: root.wide ? 100px : 72px;
+                    height: self.width;
+                    border-radius: self.width / 2;
+                    background: ProfileColors.amber;
+                    Text {
+                        text: root.account-initials;
+                        color: #0a0a0a;
+                        font-size: root.wide ? 36px : 24px;
+                        font-weight: 600;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    horizontal-stretch: 1;
+                    spacing: 8px;
+                    Text {
+                        text: root.account-name;
+                        color: ProfileColors.text;
+                        font-size: 20px;
+                        font-weight: 600;
+                        wrap: word-wrap;
+                    }
+                    Text {
+                        text: root.account-email;
+                        color: ProfileColors.muted;
+                        font-size: 14px;
+                        wrap: char-wrap;
+                    }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            alignment: start;
+            ProfileAction {
+                label: "Создать аккаунт";
+                variant: "ghost";
+                leading-icon: @image-url("assets/profile/user-plus.svg");
+                show-leading: true;
+                activated => { root.register(); }
+            }
+        }
+    }
+}

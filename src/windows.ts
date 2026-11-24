@@ -4,7 +4,7 @@ type SecondaryWindow = 'compact' | 'register'
 
 const windowOptions = {
   compact: { command: 'open_compact_chat', width: 460, height: 680 },
-  register: { command: 'open_registration', width: 444, height: 438 },
+  register: { command: 'open_registration', width: 444, height: 472 },
 } as const
 
 export async function openWindow(view: SecondaryWindow) {

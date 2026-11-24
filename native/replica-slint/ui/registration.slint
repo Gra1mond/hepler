@@ -1,0 +1,230 @@
+import { ScrollView } from "std-widgets.slint";
+import { ReplicaButton, ReplicaColors } from "foundation.slint";
+
+component RegistrationField inherits VerticalLayout {
+    in property <string> label;
+    in property <string> placeholder;
+    in property <bool> masked;
+    in-out property <string> value;
+    callback edited();
+    callback submit();
+
+    spacing: 6px;
+    public function focus-input() { field.focus(); }
+
+    Text {
+        text: root.label;
+        font-size: 13px;
+        font-weight: 500;
+        color: ReplicaColors.text;
+        accessible-role: none;
+    }
+
+    Rectangle {
+        height: 40px;
+        border-radius: 8px;
+        border-color: field.has-focus ? ReplicaColors.amber : ReplicaColors.edge;
+        border-width: field.has-focus ? 2px : 1px;
+        background: ReplicaColors.control;
+        clip: true;
+
+        if root.value == "": Text {
+            x: 12px;
+            width: parent.width - 24px;
+            text: root.placeholder;
+            font-size: 14px;
+            color: ReplicaColors.muted;
+            vertical-alignment: center;
+            overflow: elide;
+            accessible-role: none;
+        }
+
+        field := TextInput {
+            x: 12px;
+            width: parent.width - 24px;
+            text <=> root.value;
+            font-size: 14px;
+            color: ReplicaColors.strong-text;
+            selection-background-color: #fbbf2466;
+            vertical-alignment: center;
+            single-line: true;
+            input-type: root.masked ? InputType.password : InputType.text;
+            accessible-label: root.label;
+            edited => { root.edited(); }
+            accepted => { root.submit(); }
+        }
+    }
+}
+
+export component RegistrationWindow inherits Window {
+    title: "Реплика · Регистрация";
+    no-frame: true;
+    preferred-width: 444px;
+    preferred-height: 472px;
+    min-width: 320px;
+    min-height: 360px;
+    default-font-family: "Inter";
+    background: ReplicaColors.panel;
+    in-out property <string> status;
+    in-out property <bool> invalid;
+    in-out property <string> account-name;
+    in-out property <string> email;
+    in-out property <string> password;
+    callback dismiss();
+    callback drag-requested();
+    callback submit();
+
+    public function prepare-form() {
+        scroll.viewport-y = 0px;
+        name-field.focus-input();
+    }
+    public function reveal-feedback() {
+        scroll.viewport-y = min(0px, scroll.visible-height - scroll.viewport-height);
+    }
+
+    FocusScope {
+        focus-on-tab-navigation: false;
+        focus-on-click: false;
+        capture-key-pressed(event) => {
+            if event.text == Key.Escape { root.dismiss(); return accept; }
+            return reject;
+        }
+
+        Rectangle {
+            border-width: 1px;
+            border-color: ReplicaColors.edge;
+
+            Rectangle {
+                y: 0px;
+                height: 49px;
+                background: ReplicaColors.control;
+                Rectangle { y: parent.height - 1px; height: 1px; background: ReplicaColors.edge-subtle; }
+                Rectangle {
+                    x: 14px;
+                    width: 24px;
+                    height: 24px;
+                    border-radius: 8px;
+                    background: ReplicaColors.amber;
+                    Image { width: 13px; height: 13px; source: @image-url("assets/common/chat.svg"); colorize: ReplicaColors.background; }
+                }
+                Text {
+                    x: 46px;
+                    text: "Реплика";
+                    font-size: 14px;
+                    color: ReplicaColors.text;
+                    font-weight: 500;
+                }
+                TouchArea {
+                    x: 0px;
+                    width: parent.width - 54px;
+                    pointer-event(event) => {
+                        if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                            root.drag-requested();
+                        }
+                    }
+                }
+                ReplicaButton {
+                    x: parent.width - 46px;
+                    width: 32px;
+                    button-height: 32px;
+                    horizontal-padding: 7px;
+                    label: "Закрыть регистрацию";
+                    variant: "ghost";
+                    icon: @image-url("assets/common/close.svg");
+                    show-icon: true;
+                    clicked => { root.dismiss(); }
+                }
+            }
+
+            scroll := ScrollView {
+                x: 0px;
+                y: 49px;
+                width: parent.width;
+                height: parent.height - self.y;
+                viewport-width: self.visible-width;
+                viewport-height: max(self.visible-height, content.preferred-height);
+                horizontal-scrollbar-policy: always-off;
+
+                content := VerticalLayout {
+                    x: (scroll.visible-width - self.width) / 2;
+                    y: 0px;
+                    width: min(scroll.visible-width - (root.width < 380px ? 40px : 56px), 388px);
+                    height: self.preferred-height;
+                    padding-top: 24px;
+                    padding-bottom: 20px;
+                    spacing: 18px;
+                    alignment: start;
+
+                    VerticalLayout {
+                        spacing: 6px;
+                        Text {
+                            text: "Регистрация";
+                            font-size: 26px;
+                            font-weight: 700;
+                            color: ReplicaColors.strong-text;
+                            wrap: word-wrap;
+                        }
+                        Text {
+                            text: "Демо-форма. Используйте вымышленные данные.";
+                            font-size: 13px;
+                            color: ReplicaColors.muted;
+                            wrap: word-wrap;
+                        }
+                    }
+
+                    VerticalLayout {
+                        spacing: 12px;
+
+                        name-field := RegistrationField {
+                            label: "Имя";
+                            placeholder: "Например, Анна";
+                            value <=> root.account-name;
+                            edited => { root.status = ""; }
+                            submit => { root.submit(); }
+                        }
+                        RegistrationField {
+                            label: "Электронная почта";
+                            placeholder: "name@example.com";
+                            value <=> root.email;
+                            edited => { root.status = ""; }
+                            submit => { root.submit(); }
+                        }
+                        VerticalLayout {
+                            spacing: 6px;
+                            RegistrationField {
+                                label: "Пароль";
+                                masked: true;
+                                value <=> root.password;
+                                edited => { root.status = ""; }
+                                submit => { root.submit(); }
+                            }
+                            Text {
+                                text: "От 8 до 128 символов";
+                                font-size: 12px;
+                                color: ReplicaColors.muted;
+                                wrap: word-wrap;
+                            }
+                        }
+                    }
+
+                    VerticalLayout {
+                        spacing: 8px;
+                        ReplicaButton {
+                            caption: "Создать аккаунт";
+                            variant: "primary";
+                            button-height: 42px;
+                            horizontal-stretch: 1;
+                            clicked => { root.submit(); }
+                        }
+                        if root.status != "": Text {
+                            text: root.status;
+                            color: root.invalid ? #fca5a5 : #86efac;
+                            font-size: 13px;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

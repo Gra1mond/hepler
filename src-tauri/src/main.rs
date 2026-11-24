@@ -75,7 +75,7 @@ async fn open_registration(app: AppHandle) -> Result<(), String> {
         "Реплика · Регистрация",
         "index.html#register",
         444.0,
-        438.0,
+        472.0,
     )
 }
 

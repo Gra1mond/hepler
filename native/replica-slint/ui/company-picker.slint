@@ -1,0 +1,379 @@
+import { ScrollView } from "std-widgets.slint";
+import { ChatButton } from "chat.slint";
+import { CompanyBadge, UiText } from "foundation.slint";
+
+export struct CompanyRow {
+    id: string,
+    name: string,
+    logo: image,
+}
+
+component CompanyCard inherits FocusScope {
+    in property <CompanyRow> company;
+    in property <bool> selected;
+    in property <bool> reduced-motion;
+    callback select-company();
+    private property <bool> mouse-focus;
+    private property <bool> keyboard-focus: root.has-focus && !root.mouse-focus;
+    changed has-focus => { if !root.has-focus { root.mouse-focus = false; } }
+
+    accessible-role: button;
+    accessible-label: root.company.name;
+    accessible-checked: root.selected;
+    accessible-action-default => { root.select-company(); }
+    key-pressed(event) => {
+        if event.text == Key.Return || event.text == " " {
+            root.select-company();
+            return accept;
+        }
+        return reject;
+    }
+
+    Rectangle {
+        background: root.selected ? #fbbf241a : mouse.has-hover ? #262626 : #171717;
+        border-color: root.keyboard-focus ? #fbbf24 : root.selected ? #fbbf2480 : #404040;
+        border-width: root.keyboard-focus ? 2px : 1px;
+        border-radius: 8px;
+
+        HorizontalLayout {
+            padding: 9px;
+            spacing: 10px;
+
+            Rectangle {
+                width: 32px;
+                CompanyBadge {
+                    width: 32px;
+                    height: 32px;
+                    logo: root.company.logo;
+                    name: root.company.name;
+                    highlighted: mouse.has-hover || root.keyboard-focus;
+                    reduced-motion: root.reduced-motion;
+                }
+            }
+
+            Text {
+                min-width: 0px;
+                text: root.company.name;
+                color: root.selected ? #fcd34d : #e5e5e5;
+                font-size: 14px;
+                font-weight: 500;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+
+            if root.selected: Rectangle {
+                width: 15px;
+                Image {
+                    width: 15px;
+                    height: 15px;
+                    source: @image-url("assets/chat/check.svg");
+                    colorize: #fbbf24;
+                }
+            }
+        }
+        mouse := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.mouse-focus = true; root.focus(); root.select-company(); }
+        }
+    }
+}
+
+export component CompanyPicker inherits Rectangle {
+    in property <[CompanyRow]> companies;
+    in property <bool> reduced-motion;
+    in property <image> logo-preview;
+    in property <string> logo-filename;
+    in property <string> logo-error;
+    in property <bool> logo-loading;
+    callback select-company(string);
+    callback dismiss();
+    callback add-company(string);
+    callback existing-company(string) -> string;
+    callback reset-logo-error();
+    callback choose-logo();
+    callback clear-logo();
+
+    property <bool> adding;
+    property <bool> returning-to-list;
+    property <string> selected-id;
+    property <string> name;
+    property <bool> can-start: root.adding
+        ? UiText.trim(root.name) != "" && root.name.character-count <= 80 && !root.logo-loading
+        : root.selected-id != "";
+    background: #000000b3;
+    forward-focus: focus-scope;
+
+    public function focus-dialog() {
+        focus-scope.focus();
+    }
+
+    function confirm() {
+        if root.can-start {
+            if root.adding {
+                let existing = root.existing-company(root.name);
+                if existing != "" {
+                    root.selected-id = existing;
+                    root.return-to-list();
+                } else {
+                    root.add-company(root.name);
+                }
+            } else {
+                root.select-company(root.selected-id);
+            }
+        }
+    }
+
+    function return-to-list() {
+        root.returning-to-list = true;
+        root.reset-logo-error();
+        root.adding = false;
+    }
+
+    TouchArea {}
+
+    focus-scope := FocusScope {
+        width: 100%;
+        height: 100%;
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                root.dismiss();
+                return accept;
+            }
+            return reject;
+        }
+
+        dialog := Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: min(520px, root.width - 32px);
+            height: min(panel.preferred-height, root.height - 32px);
+            background: #121212;
+            border-width: 1px;
+            border-color: #404040;
+            border-radius: 16px;
+            clip: true;
+
+            TouchArea {}
+
+            dialog-scroll := ScrollView {
+                width: parent.width;
+                height: parent.height;
+                horizontal-scrollbar-policy: always-off;
+                viewport-width: self.visible-width;
+                viewport-height: max(self.visible-height, panel.preferred-height);
+
+                panel := VerticalLayout {
+                    x: 0px;
+                    y: 0px;
+                    width: dialog-scroll.visible-width;
+                    height: self.preferred-height;
+                    padding: root.width >= 640px ? 24px : 20px;
+                    spacing: 16px;
+
+                    HorizontalLayout {
+                        spacing: 12px;
+                        VerticalLayout {
+                            spacing: 6px;
+                            Text {
+                                text: root.adding ? "Новая компания" : "Компания собеседования";
+                                font-size: root.width >= 640px ? 24px : 20px;
+                                font-weight: 600;
+                                color: #e5e5e5;
+                                wrap: word-wrap;
+                            }
+                            Text {
+                                text: root.adding ? "Добавьте компанию, которой нет в списке." : "Выберите компанию для этого диалога.";
+                                font-size: 14px;
+                                color: #a3a3a3;
+                                wrap: word-wrap;
+                            }
+                        }
+                        ChatButton {
+                            width: 34px;
+                            max-height: 32px;
+                            label: "Закрыть";
+                            bare: true;
+                            icon: @image-url("assets/chat/x.svg");
+                            show-icon: true;
+                            init => { self.focus(); }
+                            clicked => { root.dismiss(); }
+                        }
+                    }
+
+                    Rectangle { height: 8px; }
+                    if !root.adding: VerticalLayout {
+                        spacing: 8px;
+                        Text { text: "Компании"; color: #a3a3a3; font-size: 14px; }
+                        grid-scroll := ScrollView {
+                            property <int> columns: root.width >= 400px ? 2 : 1;
+                            property <length> row-size: 60px;
+                            property <length> content-height: max(0px, ceil(root.companies.length / (1.0 * columns)) * row-size - 8px);
+                            height: min(216px, content-height);
+                            horizontal-scrollbar-policy: always-off;
+                            viewport-width: self.visible-width;
+                            viewport-height: max(self.visible-height, self.content-height);
+
+                            for company[index] in root.companies: CompanyCard {
+                                property <length> tile-width: (grid-scroll.visible-width - 8px * (grid-scroll.columns - 1)) / grid-scroll.columns;
+                                x: mod(index, grid-scroll.columns) * (tile-width + 8px);
+                                y: floor(index / (1.0 * grid-scroll.columns)) * grid-scroll.row-size;
+                                width: tile-width;
+                                height: 52px;
+                                company: company;
+                                selected: root.selected-id == company.id;
+                                reduced-motion: root.reduced-motion;
+                                select-company => { root.selected-id = company.id; }
+                            }
+                        }
+                        HorizontalLayout {
+                            alignment: start;
+                            add-company-button := ChatButton {
+                                label: "Добавить свою компанию";
+                                caption: "Добавить свою компанию";
+                                icon: @image-url("assets/chat/plus.svg");
+                                icon-color: #fbbf24;
+                                show-icon: true;
+                                clicked => { root.adding = true; }
+                            }
+                            Timer {
+                                interval: 1ms;
+                                running: root.returning-to-list;
+                                triggered => {
+                                    root.returning-to-list = false;
+                                    add-company-button.focus();
+                                }
+                            }
+                        }
+                    }
+
+                    if root.adding: VerticalLayout {
+                        spacing: 10px;
+                        Text { text: "Название компании"; color: #d4d4d4; font-size: 14px; }
+                        Rectangle {
+                            height: 37px;
+                            background: #171717;
+                            border-color: name-input.has-focus ? #fbbf24 : #404040;
+                            border-width: name-input.has-focus ? 2px : 1px;
+                            border-radius: 8px;
+                            if root.name == "": Text {
+                                x: 10px;
+                                width: parent.width - 20px;
+                                text: "Например, Север Лаб";
+                                color: #a3a3a3;
+                                vertical-alignment: center;
+                            }
+                            name-input := TextInput {
+                                x: 10px;
+                                width: parent.width - 20px;
+                                text <=> root.name;
+                                single-line: true;
+                                font-size: 14px;
+                                color: #e5e5e5;
+                                vertical-alignment: center;
+                                accessible-label: "Название компании";
+                                accepted => { root.confirm(); }
+                            }
+                            Timer {
+                                interval: 1ms;
+                                running: true;
+                                triggered => {
+                                    self.running = false;
+                                    name-input.focus();
+                                }
+                            }
+                        }
+                        if root.name.character-count > 80: Text {
+                            text: "Название должно быть не длиннее 80 символов.";
+                            color: #fca5a5;
+                            font-size: 13px;
+                            wrap: word-wrap;
+                        }
+                        Text { text: "Логотип по желанию"; color: #d4d4d4; font-size: 14px; }
+                        Rectangle {
+                            background: #171717;
+                            border-color: #262626;
+                            border-width: 1px;
+                            border-radius: 10px;
+                            preview-hover := TouchArea {}
+                            VerticalLayout {
+                                padding: 10px;
+                                spacing: 8px;
+                                HorizontalLayout {
+                                    spacing: 10px;
+                                    CompanyBadge { width: 44px; height: 44px; logo: root.logo-preview; name: root.name; highlighted: preview-hover.has-hover; reduced-motion: root.reduced-motion; }
+                                    VerticalLayout {
+                                        alignment: center;
+                                        spacing: 3px;
+                                        Text {
+                                            text: root.logo-filename != "" ? root.logo-filename : "Инициалы компании";
+                                            color: #e5e5e5;
+                                            font-size: 13px;
+                                            overflow: elide;
+                                        }
+                                        Text {
+                                            text: root.logo-loading ? "Открываем изображение…" : root.logo-filename != "" ? "Файл выбран" : "PNG, JPG или WebP до 5 МБ";
+                                            color: #a3a3a3;
+                                            font-size: 12px;
+                                            wrap: word-wrap;
+                                        }
+                                    }
+                                }
+                                HorizontalLayout {
+                                    alignment: end;
+                                    spacing: 6px;
+                                    if root.logo-filename != "": ChatButton {
+                                        label: "Убрать";
+                                        caption: "Убрать";
+                                        enabled: !root.logo-loading;
+                                        clicked => { root.clear-logo(); }
+                                    }
+                                    ChatButton {
+                                        label: root.logo-filename != "" ? "Заменить" : "Выбрать файл";
+                                        caption: self.label;
+                                        show-icon: true;
+                                        icon: @image-url("assets/chat/upload.svg");
+                                        enabled: !root.logo-loading;
+                                        clicked => { root.choose-logo(); }
+                                    }
+                                }
+                            }
+                        }
+                        if root.logo-error != "": Text {
+                            text: root.logo-error;
+                            color: #fca5a5;
+                            font-size: 13px;
+                            wrap: word-wrap;
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: #262626; }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        ChatButton {
+                            label: root.adding ? "К списку компаний" : "Без компании";
+                            caption: self.label;
+                            show-icon: root.adding;
+                            icon: @image-url("assets/chat/arrow-left.svg");
+                            clicked => {
+                                if root.adding {
+                                    root.return-to-list();
+                                } else {
+                                    root.select-company("");
+                                }
+                            }
+                        }
+                        Rectangle { horizontal-stretch: 1; }
+                        ChatButton {
+                            label: "Начать диалог";
+                            caption: "Начать диалог";
+                            enabled: root.can-start;
+                            primary: root.can-start;
+                            clicked => { root.confirm(); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
