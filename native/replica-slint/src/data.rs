@@ -36,32 +36,32 @@ const BUILT_IN: [(&str, &str, &[u8]); 6] = [
     (
         "yandex",
         "Яндекс",
-        include_bytes!("../../../public/companies/yandex.png"),
+        include_bytes!("../ui/assets/companies/yandex.png"),
     ),
     (
         "ozon",
         "Ozon",
-        include_bytes!("../../../public/companies/ozon.png"),
+        include_bytes!("../ui/assets/companies/ozon.png"),
     ),
     (
         "avito",
         "Авито",
-        include_bytes!("../../../public/companies/avito.png"),
+        include_bytes!("../ui/assets/companies/avito.png"),
     ),
     (
         "vk",
         "VK",
-        include_bytes!("../../../public/companies/vk.png"),
+        include_bytes!("../ui/assets/companies/vk.png"),
     ),
     (
         "tbank",
         "Т-Банк",
-        include_bytes!("../../../public/companies/tbank.png"),
+        include_bytes!("../ui/assets/companies/tbank.png"),
     ),
     (
         "sber",
         "Сбер",
-        include_bytes!("../../../public/companies/sber.png"),
+        include_bytes!("../ui/assets/companies/sber.png"),
     ),
 ];
 

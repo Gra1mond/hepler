@@ -1,0 +1,46 @@
+export component ThinkingOrb inherits Rectangle {
+    in property <bool> thinking;
+    in property <bool> reduced-motion;
+
+    width: 32px;
+    height: 32px;
+    private property <bool> rotating: root.thinking && !root.reduced-motion;
+
+    Rectangle {
+        transform-scale-x: !root.reduced-motion && hover.has-hover ? 1.08 : 1;
+        transform-scale-y: self.transform-scale-x;
+        opacity: hover.has-hover ? 1 : 0.9;
+        animate transform-scale-x, transform-scale-y, opacity {
+            duration: root.reduced-motion ? 0ms : 180ms;
+            easing: cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        if !root.rotating: Image {
+            source: @image-url("assets/chat/orb.svg");
+            accessible-role: none;
+        }
+
+        if root.rotating: Rectangle {
+            property <angle> turn: 360deg * mod(animation-tick(), 2400ms) / 2400ms;
+            for count[band] in [5, 9, 13, 16, 17, 16, 13, 9, 5]: Rectangle {
+                width: parent.width;
+                height: parent.height;
+                property <angle> latitude: (band - 4) * 18deg;
+                property <angle> spin: parent.turn + band * 14deg;
+                for dot in count: Rectangle {
+                    property <angle> longitude: parent.spin + 360deg * dot / count;
+                    property <float> depth: cos(parent.latitude) * cos(self.longitude);
+                    width: (0.86 + (self.depth + 1) * 0.38) * 1px;
+                    height: self.width;
+                    x: parent.width / 2 + 13px * cos(parent.latitude) * sin(self.longitude) - self.width / 2;
+                    y: parent.height / 2 + 13px * sin(parent.latitude) - self.height / 2;
+                    border-radius: self.width / 2;
+                    background: #f5f5f5;
+                    opacity: 0.22 + (self.depth + 1) * 0.37;
+                }
+            }
+        }
+    }
+
+    hover := TouchArea {}
+}

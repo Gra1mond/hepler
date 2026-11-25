@@ -1,6 +1,32 @@
 import { ScrollView } from "std-widgets.slint";
 import { ReplicaButton, ReplicaColors } from "foundation.slint";
 
+component AccountAvatar inherits Rectangle {
+    in property <image> picture;
+    in property <int> index;
+    in property <bool> reduced-motion;
+    width: 64px;
+    height: 82px;
+
+    Image {
+        x: 6px;
+        y: pointer.has-hover && !root.reduced-motion ? 5px : 16px;
+        width: 52px;
+        height: 50px;
+        source: root.picture;
+        accessible-role: none;
+        property <angle> phase: root.reduced-motion ? 0deg : 360deg * mod(animation-tick() + root.index * 410ms, 2400ms) / 2400ms;
+        transform-rotation: root.reduced-motion ? 0deg : pointer.has-hover ? 8deg : 2deg * sin(self.phase);
+        animate y { duration: root.reduced-motion ? 0ms : 180ms; easing: cubic-bezier(0.23, 1, 0.32, 1); }
+    }
+    if pointer.has-hover: Rectangle {
+        x: 55px; y: 8px; width: 5px; height: 5px;
+        transform-rotation: 45deg;
+        background: ReplicaColors.amber;
+    }
+    pointer := TouchArea {}
+}
+
 component RegistrationField inherits VerticalLayout {
     in property <string> label;
     in property <string> placeholder;
@@ -57,10 +83,12 @@ component RegistrationField inherits VerticalLayout {
 }
 
 export component RegistrationWindow inherits Window {
-    title: "Реплика · Регистрация";
+    title: root.login ? "Реплика · Вход" : "Реплика · Регистрация";
+    in-out property <bool> login;
+    in property <bool> reduced-motion;
     no-frame: true;
     preferred-width: 444px;
-    preferred-height: 472px;
+    preferred-height: 600px;
     min-width: 320px;
     min-height: 360px;
     default-font-family: "Inter";
@@ -76,7 +104,7 @@ export component RegistrationWindow inherits Window {
 
     public function prepare-form() {
         scroll.viewport-y = 0px;
-        name-field.focus-input();
+        if root.login { email-field.focus-input(); } else { name-field.focus-input(); }
     }
     public function reveal-feedback() {
         scroll.viewport-y = min(0px, scroll.visible-height - scroll.viewport-height);
@@ -154,11 +182,20 @@ export component RegistrationWindow inherits Window {
                     padding-bottom: 20px;
                     spacing: 18px;
                     alignment: start;
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 8px;
+                        for picture[index] in [@image-url("assets/common/clover.png"), @image-url("assets/common/flower.png"), @image-url("assets/common/ghost.png")]: AccountAvatar {
+                            picture: picture;
+                            index: index;
+                            reduced-motion: root.reduced-motion;
+                        }
+                    }
 
                     VerticalLayout {
                         spacing: 6px;
                         Text {
-                            text: "Регистрация";
+                            text: root.login ? "Вход в аккаунт" : "Регистрация";
                             font-size: 26px;
                             font-weight: 700;
                             color: ReplicaColors.strong-text;
@@ -176,13 +213,14 @@ export component RegistrationWindow inherits Window {
                         spacing: 12px;
 
                         name-field := RegistrationField {
+                            visible: !root.login;
                             label: "Имя";
                             placeholder: "Например, Анна";
                             value <=> root.account-name;
                             edited => { root.status = ""; }
                             submit => { root.submit(); }
                         }
-                        RegistrationField {
+                        email-field := RegistrationField {
                             label: "Электронная почта";
                             placeholder: "name@example.com";
                             value <=> root.email;
@@ -210,11 +248,22 @@ export component RegistrationWindow inherits Window {
                     VerticalLayout {
                         spacing: 8px;
                         ReplicaButton {
-                            caption: "Создать аккаунт";
+                            caption: root.login ? "Войти" : "Создать аккаунт";
                             variant: "primary";
                             button-height: 42px;
                             horizontal-stretch: 1;
                             clicked => { root.submit(); }
+                        }
+                        ReplicaButton {
+                            caption: root.login ? "Создать аккаунт" : "Уже есть аккаунт? Войти";
+                            variant: "ghost";
+                            horizontal-stretch: 1;
+                            clicked => {
+                                root.login = !root.login;
+                                root.status = "";
+                                root.password = "";
+                                root.prepare-form();
+                            }
                         }
                         if root.status != "": Text {
                             text: root.status;

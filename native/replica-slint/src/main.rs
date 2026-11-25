@@ -58,7 +58,7 @@ impl Runtime {
             .set_size(slint::LogicalSize::new(460.0, 680.0));
         registration
             .window()
-            .set_size(slint::LogicalSize::new(444.0, 472.0));
+            .set_size(slint::LogicalSize::new(444.0, 600.0));
         let icons = std::array::from_fn(|index| {
             main.get_navigation_icons()
                 .row_data(index)
@@ -744,6 +744,7 @@ fn main() -> Result<(), slint::PlatformError> {
     for ui in runtime.globals() {
         ui.set_reduced_motion(reduce);
     }
+    runtime.registration.set_reduced_motion(reduce);
     runtime.main.run()
 }
 
@@ -927,6 +928,7 @@ fn wire(runtime: &Rc<Runtime>) {
         }
     );
     bind!(runtime.main, on_register, |app| {
+        app.registration.set_login(false);
         if app.registration.show().is_ok() {
             focus(app.registration.window());
             app.registration.invoke_prepare_form();
@@ -947,8 +949,13 @@ fn wire(runtime: &Rc<Runtime>) {
     });
     bind!(runtime.registration, on_submit, |app| {
         let form = &app.registration;
+        let name = form.get_account_name();
         let result = validate_registration(
-            &form.get_account_name(),
+            if form.get_login() {
+                "Демо"
+            } else {
+                name.as_str()
+            },
             &form.get_email(),
             &form.get_password(),
         );

@@ -1,4 +1,5 @@
 import { ScrollView } from "std-widgets.slint";
+import { ThinkingOrb } from "thinking-orb.slint";
 import { CompanyBadge, ReplicaColors } from "foundation.slint";
 import { ReplicaSelect, SelectOption } from "select.slint";
 
@@ -212,12 +213,16 @@ component ExchangeView inherits VerticalLayout {
         }
     }
 
-    if !root.compact: HorizontalLayout {
+    if !root.compact || root.exchange.status != "error": HorizontalLayout {
         alignment: start;
-        padding-top: 16px;
+        padding-top: root.compact ? 0px : 16px;
         padding-left: root.use-message-insets ? 32px : 0px;
-        spacing: 14px;
-        Mark { width: 32px; height: 32px; }
+        spacing: root.compact ? 8px : 14px;
+        if root.exchange.status == "error": Mark { width: 32px; height: 32px; }
+        if root.exchange.status != "error": ThinkingOrb {
+            thinking: root.exchange.status == "pending";
+            reduced-motion: root.reduced-motion;
+        }
         Text {
             text: "Реплика";
             color: ReplicaColors.text;
@@ -233,20 +238,6 @@ component ExchangeView inherits VerticalLayout {
         if root.exchange.status == "pending": HorizontalLayout {
             alignment: start;
             spacing: 10px;
-            Rectangle {
-                width: 16px;
-                height: 20px;
-                property <angle> sweep: root.reduced-motion ? 0deg : 360deg * mod(animation-tick(), 1s) / 1s;
-                for index in 12: Rectangle {
-                    width: 1.6px;
-                    height: 1.6px;
-                    property <angle> angle: parent.sweep + index * 30deg;
-                    x: 7.2px + cos(self.angle) * 7px;
-                    y: 11.2px + sin(self.angle) * 7px;
-                    border-radius: 0.8px;
-                    background: #d4d4d4;
-                }
-            }
             VerticalLayout {
                 alignment: start;
                 spacing: 8px;
@@ -749,8 +740,6 @@ export component ChatPage inherits Rectangle {
                                     preferred-height: self.min-height;
                                     horizontal-stretch: 1;
                                     border-radius: 4px;
-                                    border-width: editor.has-focus ? 2px : 0px;
-                                    border-color: ReplicaColors.amber;
                                     input-scroll := ScrollView {
                                         x: 4px;
                                         y: 1px;

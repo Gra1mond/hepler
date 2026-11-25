@@ -1,66 +1,17 @@
 # Реплика
 
-## Нативная версия для Windows
+Нативное приложение для Windows на Rust и Slint. В этой ветке находятся исходники приложения, макеты интерфейса Slint и ресурсы, которые использует сборка.
 
-Нативная сборка «Реплики» использует Rust и Slint. У неё отдельный [релиз для Windows x64](https://github.com/Gra1mond/hepler/releases/tag/v0.1.0-slint) и [инструкция по сборке](native/replica-slint/README.md).
+## Запуск
 
-[![Made with Slint](https://raw.githubusercontent.com/slint-ui/slint/master/logo/MadeWithSlint-logo-whitebg.png)](https://slint.dev/)
+Откройте Developer PowerShell for Visual Studio с установленными Build Tools и Windows SDK. Из корня репозитория выполните:
 
-## Версия на Tauri
-
-
-Десктопный прототип для Windows, который помогает разбирать вопросы с технических собеседований и собирать материалы для подготовки. Интерфейс написан на React и TypeScript, оформлен на Tailwind CSS и работает в оболочке Tauri 2.
-
-## Что можно попробовать
-
-- Выбрать модель и компанию перед началом диалога. Для своей компании можно загрузить логотип или использовать инициалы.
-- Ввести вопрос и получить демонстрационный ответ с тезисом, объяснением и примером. Обычный и компактный чат показывают ожидание, ошибку и повторную отправку.
-- Подготовить материалы в отдельной вкладке профиля. Она содержит резюме и список вопросов для контекста.
-- Открыть карточку компании, перейти к её вопросам или посмотреть общую базу. Завершённые ответы сохраняются локально вместе с указанием исходного диалога.
-- Посмотреть демонстрационную статистику использования API и экран отдельного окна регистрации.
-
-В этой версии ответы и подключение к моделям имитирует локальный адаптер. Регистрация проверяет форму в интерфейсе. Компании, материалы и история вопросов хранятся на устройстве. Записи экрана и диалога представлены экраном-заглушкой.
-
-## Запуск из исходников
-
-Установите Node.js и pnpm. Для десктопного режима на Windows понадобятся Rust с инструментами MSVC и WebView2 Runtime. [Требования Tauri для Windows](https://v2.tauri.app/start/prerequisites/)
-
-```bash
-pnpm install --frozen-lockfile
-pnpm dev
+```powershell
+cargo run --locked --manifest-path native/replica-slint/Cargo.toml
+cargo test --locked --manifest-path native/replica-slint/Cargo.toml
+cargo build --locked --release --manifest-path native/replica-slint/Cargo.toml
 ```
 
-Vite выведет адрес стенда. Для запуска отдельного окна приложения выполните `pnpm tauri dev`.
+В этой версии чат, регистрация и вход работают в деморежиме. Вход проверяет форму локально. Аватары Clover, Flower и Ghost используют изображения из макетов Реплики по мотивам [Bot Avatars](https://libraries.dev/bots). Движение реализовано в Slint.
 
-В приложении откройте **«Подключить модель» → «Демо-ключ» → «Добавить»**. Затем вернитесь на главную и нажмите **«Начать собеседование»**.
-
-`pnpm build` проверяет TypeScript и собирает фронтенд. `pnpm test` запускает тесты Vitest. После сборки команда `pnpm test:browser` проверяет сценарии в установленном Microsoft Edge.
-
-## Скриншоты приложения
-
-### Главная
-![Главный экран Реплики и выбор модели](docs/screenshots/home.png)
-
-### Выбор компании
-![Окно выбора компании с фирменными логотипами](docs/screenshots/company-picker.png)
-
-### Чат собеседования
-![Тезис, объяснение и пример в основном чате](docs/screenshots/chat.png)
-
-### Компактный чат
-![Отдельное окно компактного чата](docs/screenshots/compact-chat.png)
-
-### Профиль и компании
-![Вкладки профиля и карточки компаний](docs/screenshots/interviews.png)
-
-### Общая база вопросов
-![Вопросы из диалогов с темой, компанией и сложностью](docs/screenshots/question-library.png)
-
-### Карточка вопроса
-![Описание, ответ и источник вопроса](docs/screenshots/question-detail.png)
-
-### Материалы
-![Резюме и подготовленные вопросы](docs/screenshots/materials.png)
-
-### Использование API
-![Демонстрационный обзор запросов и расходов](docs/screenshots/api-usage.png)
+[![Made with Slint](https://raw.githubusercontent.com/slint-ui/slint/master/logo/MadeWithSlint-logo-whitebg.png)](https://slint.dev/)
