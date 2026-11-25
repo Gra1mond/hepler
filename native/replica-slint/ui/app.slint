@@ -8,10 +8,13 @@ import { ProfilePage } from "profile.slint";
 import { UsagePage } from "usage.slint";
 import { MaterialEditor, MaterialsPage, MaterialQuestion } from "materials.slint";
 import { InterviewsPage, InterviewCompanyCard, InterviewQuestionCard } from "interviews.slint";
-import { RecordsPage, ProfileNavigation, NavigationItem, NavigationRail } from "shell.slint";
+import { RecordsPage, ProfileNavigation, NavigationItem, NavigationRail, NavigationButton } from "shell.slint";
 import { SelectOption } from "select.slint";
-import { UiText } from "foundation.slint";
-export { SelectOption, UiText, Palette, ChatRow, CompanyRow, MaterialQuestion, InterviewCompanyCard, InterviewQuestionCard, NavigationItem }
+import { UiText, ReplicaColors, ReplicaButton } from "foundation.slint";
+import { PersonalizationPage, PersonalizationText } from "personalization.slint";
+import { InterviewRolePicker } from "interview-role.slint";
+import { AnswerStylePage, StyleMessage } from "answer-style.slint";
+export { SelectOption, UiText, ReplicaColors, PersonalizationText, StyleMessage, Palette, ChatRow, CompanyRow, MaterialQuestion, InterviewCompanyCard, InterviewQuestionCard, NavigationItem }
 
 export global DemoState {
     in property <[SelectOption]> models;
@@ -126,6 +129,28 @@ export component MainWindow inherits ChatSurface {
     in property <InterviewCompanyCard> selected-company;
     in property <string> interview-summary;
     in property <bool> show-companies;
+    in property <bool> show-roles;
+    in property <string> selected-role;
+    in property <bool> setup-notice;
+    in property <string> account-name;
+    in property <string> account-email;
+    in property <[StyleMessage]> style-messages;
+    in-out property <string> style-draft;
+    in-out property <string> style-summary;
+    in property <string> style-issue;
+    in property <bool> style-ready;
+    in property <bool> style-complete;
+    in property <bool> voice-recording;
+    in property <bool> voice-processing;
+    callback apply-accent(color);
+    callback choose-role(string);
+    callback dismiss-role();
+    callback send-style(string);
+    callback start-voice();
+    callback stop-voice();
+    callback cancel-voice();
+    callback save-style(string);
+    callback restart-style();
     in-out property <bool> show-connection;
     in-out property <string> settings-notice;
     in property <string> material-issue;
@@ -173,7 +198,8 @@ export component MainWindow inherits ChatSurface {
         width: root.narrow ? parent.width : root.rail-width;
         height: root.narrow ? root.rail-height : parent.height;
         narrow: root.narrow;
-        page: root.profile-tab != "" ? "profile" : root.page;
+        page: root.profile-tab != "" ? "profile" : root.page == "settings/personalization" ? "settings" : root.page;
+        profile-notice: root.setup-notice;
         items: root.navigation;
         navigate(value) => {
             if value == "chat" { root.companies-opened-from-home = false; }
@@ -257,6 +283,27 @@ export component MainWindow inherits ChatSurface {
                             }
                             open-materials => { root.navigate("materials"); }
                         }
+                        if root.page == "settings" || root.page == "settings/personalization": HorizontalLayout {
+                            alignment: start;
+                            spacing: 20px;
+                            padding-bottom: 22px;
+                            NavigationButton {
+                                title: "Настройки агента";
+                                active: root.page == "settings";
+                                tab-style: true;
+                                activated => { root.navigate("settings"); }
+                            }
+                            NavigationButton {
+                                title: "Персонализация";
+                                active: root.page == "settings/personalization";
+                                tab-style: true;
+                                activated => { root.navigate("settings/personalization"); }
+                            }
+                        }
+                        if root.page == "settings/personalization": PersonalizationPage {
+                            accent: ReplicaColors.amber;
+                            apply(value) => { root.apply-accent(value); }
+                        }
                         if root.page == "settings": SettingsPage {
                             model: root.preferred-model;
                             connected: DemoState.connected;
@@ -270,7 +317,51 @@ export component MainWindow inherits ChatSurface {
                             close-connection => { root.close-connection(); }
                             demo-error => { root.demo-error(); }
                         }
-                        if root.page == "profile": ProfilePage { register => { root.register(); } }
+                        if root.page == "profile": VerticalLayout {
+                            spacing: 20px;
+                            ProfilePage {
+                                account-name: root.account-name == "" ? "Анна Петрова" : root.account-name;
+                                account-email: root.account-email == "" ? "anna@example.com" : root.account-email;
+                                account-initials: UiText.initials(self.account-name);
+                                register => { root.register(); }
+                            }
+                            if root.setup-notice: Rectangle {
+                                background: ReplicaColors.control;
+                                border-radius: 12px;
+                                border-color: ReplicaColors.edge-subtle;
+                                border-width: 1px;
+                                VerticalLayout {
+                                    padding: 20px;
+                                    spacing: 10px;
+                                    Text { text: "Завершите настройку"; color: ReplicaColors.text; font-size: 18px; font-weight: 600; }
+                                    Text { text: "Короткий диалог поможет подстроить ответы под ваш стиль."; color: ReplicaColors.muted; wrap: word-wrap; }
+                                    HorizontalLayout {
+                                        alignment: start;
+                                        ReplicaButton {
+                                            caption: root.style-messages.length > 1 ? "Продолжить настройку" : "Начать диалог";
+                                            variant: "primary";
+                                            clicked => { root.navigate("profile/style"); }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if root.page == "profile/style": AnswerStylePage {
+                            messages: root.style-messages;
+                            draft <=> root.style-draft;
+                            summary <=> root.style-summary;
+                            issue: root.style-issue;
+                            ready-to-save: root.style-ready;
+                            complete: root.style-complete;
+                            recording: root.voice-recording;
+                            processing: root.voice-processing;
+                            send(value) => { root.send-style(value); }
+                            start-voice => { root.start-voice(); }
+                            stop-voice => { root.stop-voice(); }
+                            cancel-voice => { root.cancel-voice(); }
+                            save(value) => { root.save-style(value); }
+                            restart => { root.restart-style(); }
+                        }
                         if root.page == "usage" || root.page == "usage/models": UsagePage {
                             details: root.page == "usage/models";
                             reduced-motion: DemoState.reduced-motion;
@@ -339,6 +430,19 @@ export component MainWindow inherits ChatSurface {
         model: root.preferred-model;
         connect(value) => { root.connect(value); }
         close => { root.close-connection(); }
+    }
+
+    if root.show-roles: InterviewRolePicker {
+        selected-role: root.selected-role;
+        choose(value) => { root.choose-role(value); }
+        dismiss => {
+            root.dismiss-role();
+            if root.companies-opened-from-home {
+                root.home-focus-request += 1;
+            } else {
+                navigation-rail.restore-focus("chat");
+            }
+        }
     }
 
     if root.show-companies: CompanyPicker {

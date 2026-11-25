@@ -55,7 +55,7 @@ export component ChatButton inherits FocusScope {
     Rectangle {
         border-width: root.keyboard-focus ? 2px : root.bare ? 0px : 1px;
         border-radius: 6px;
-        border-color: root.keyboard-focus || root.primary ? ReplicaColors.amber : root.selected ? #fbbf2480 : ReplicaColors.edge;
+        border-color: root.keyboard-focus || root.primary ? ReplicaColors.amber : root.selected ? ReplicaColors.amber.with-alpha(0.5) : ReplicaColors.edge;
         background: root.primary ? ReplicaColors.amber : mouse.has-hover && root.enabled ? #262626 : root.bare ? transparent : #171717;
         opacity: root.enabled ? 1 : 0.48;
         HorizontalLayout {
@@ -93,7 +93,7 @@ export component ChatButton inherits FocusScope {
 component InterviewLabel inherits Rectangle {
     min-height: 32px;
     border-radius: 8px;
-    background: #fbbf241a;
+    background: ReplicaColors.amber.with-alpha(0.1);
     HorizontalLayout {
         padding: 8px;
         spacing: 5px;
@@ -266,9 +266,9 @@ component ExchangeView inherits VerticalLayout {
         }
 
         if root.exchange.status == "error": Rectangle {
-            background: #fbbf241a;
+            background: ReplicaColors.amber.with-alpha(0.1);
             border-width: 1px;
-            border-color: #fbbf2459;
+            border-color: ReplicaColors.amber.with-alpha(0.35);
             border-radius: 12px;
             VerticalLayout {
                 padding: 14px;
@@ -315,7 +315,7 @@ component ExchangeView inherits VerticalLayout {
                 spacing: root.compact ? 13px : 16px;
                 Rectangle {
                     border-radius: 12px;
-                    background: #fbbf241a;
+                    background: ReplicaColors.amber.with-alpha(0.1);
                     min-height: root.compact ? summary-content.preferred-height : max(84px, summary-content.preferred-height + 8px);
                     Rectangle {
                         x: 0px;
@@ -474,8 +474,8 @@ export component ChatPage inherits Rectangle {
                             height: 30px;
                             border-radius: 8px;
                             border-width: 1px;
-                            border-color: #fbbf2433;
-                            background: #fbbf2414;
+                            border-color: ReplicaColors.amber.with-alpha(0.2);
+                            background: ReplicaColors.amber.with-alpha(0.08);
                             company-layout := HorizontalLayout {
                                 padding-left: 8px;
                                 padding-right: 8px;
@@ -499,7 +499,7 @@ export component ChatPage inherits Rectangle {
                                     text: root.company;
                                     font-weight: 500;
                                     font-size: 12px;
-                                    color: #fcd34d;
+                                    color: ReplicaColors.amber-light;
                                     overflow: elide;
                                     vertical-alignment: center;
                                 }
@@ -684,13 +684,13 @@ export component ChatPage inherits Rectangle {
                         background: #0b0b0b;
                         drop-shadow-offset-y: 4px;
                         drop-shadow-blur: 14px;
-                        drop-shadow-color: #fbbf2426;
+                        drop-shadow-color: ReplicaColors.amber.with-alpha(0.15);
                     }
                     Rectangle {
                         border-radius: 18px;
                         background: #0b0b0b;
                         drop-shadow-blur: 2px;
-                        drop-shadow-color: #fbbf2454;
+                        drop-shadow-color: ReplicaColors.amber.with-alpha(0.33);
                     }
                     Rectangle {
                         x: parent.width * 0.28;
@@ -698,7 +698,7 @@ export component ChatPage inherits Rectangle {
                         width: parent.width * 0.24;
                         height: 8px;
                         border-radius: 4px;
-                        background: @radial-gradient(circle, #fbbf243d 0%, transparent 82%);
+                        background: @radial-gradient(circle, ReplicaColors.amber.with-alpha(0.24) 0%, transparent 82%);
                     }
                     Rectangle {
                         x: parent.width * 0.61;
@@ -706,13 +706,13 @@ export component ChatPage inherits Rectangle {
                         width: parent.width * 0.24;
                         height: 8px;
                         border-radius: 4px;
-                        background: @radial-gradient(circle, #fbbf243d 0%, transparent 82%);
+                        background: @radial-gradient(circle, ReplicaColors.amber.with-alpha(0.24) 0%, transparent 82%);
                     }
                     Rectangle {
                         background: #0b0b0b;
                         border-radius: 18px;
                         border-width: 1px;
-                        border-color: ReplicaColors.edge;
+                        border-color: ReplicaColors.amber.with-alpha(0.56);
 
                         composer := VerticalLayout {
                             padding: 11px;
@@ -757,7 +757,7 @@ export component ChatPage inherits Rectangle {
                                             vertical-alignment: center;
                                             font-size: 14px;
                                             color: ReplicaColors.text;
-                                            selection-background-color: #fbbf2466;
+                                            selection-background-color: ReplicaColors.amber.with-alpha(0.4);
                                             selection-foreground-color: #ffffff;
                                             single-line: false;
                                             wrap: word-wrap;

@@ -1,7 +1,8 @@
+import { ReplicaColors } from "foundation.slint";
 export global ProfileColors {
     out property <color> text: #e5e5e5;
     out property <color> muted: #a3a3a3;
-    out property <color> amber: #fbbf24;
+    out property <color> amber: ReplicaColors.amber;
     out property <color> border: #262626;
     out property <color> surface: #121212;
 }
@@ -48,10 +49,10 @@ export component ProfileAction inherits FocusScope {
         border-width: root.has-focus ? 2px : root.bare || root.variant == "ghost" ? 0px : 1px;
         border-color: root.has-focus ? ProfileColors.amber
             : root.variant == "primary" ? ProfileColors.amber
-            : root.variant == "accent-outline" ? #fbbf2459
+            : root.variant == "accent-outline" ? ProfileColors.amber.with-alpha(0.349)
             : hit.has-hover ? #525252 : #404040;
-        background: root.variant == "primary" ? (hit.has-hover ? #fcd34d : ProfileColors.amber)
-            : root.variant == "accent-outline" ? (hit.has-hover ? #fbbf241a : transparent)
+        background: root.variant == "primary" ? (hit.has-hover ? ReplicaColors.amber-light : ProfileColors.amber)
+            : root.variant == "accent-outline" ? (hit.has-hover ? ProfileColors.amber.with-alpha(0.102) : transparent)
             : root.bare ? transparent
             : hit.has-hover ? #262626
             : root.variant == "ghost" ? transparent : #171717;

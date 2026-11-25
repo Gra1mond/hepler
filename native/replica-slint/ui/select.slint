@@ -1,3 +1,4 @@
+import { ReplicaColors } from "foundation.slint";
 export struct SelectOption { label: string, value: string, disabled: bool }
 
 export component ReplicaSelect inherits FocusScope {
@@ -69,7 +70,7 @@ export component ReplicaSelect inherits FocusScope {
     Rectangle {
         border-radius: 6px;
         border-width: root.has-focus && !root.pointer-focus ? 2px : 1px;
-        border-color: root.has-focus && !root.pointer-focus ? #fbbf24 : #404040;
+        border-color: root.has-focus && !root.pointer-focus ? ReplicaColors.amber : #404040;
         background: #171717;
         opacity: root.enabled ? 1 : 0.5;
         Text {
@@ -143,7 +144,9 @@ export component ReplicaSelect inherits FocusScope {
                     for option[index] in root.options: Rectangle {
                         height: 28px;
                         border-radius: 3px;
-                        background: !option.disabled && (index == root.cursor || hit.has-hover) ? #353535 : transparent;
+                        background: option.disabled ? transparent
+                            : index == root.cursor ? ReplicaColors.amber.with-alpha(0.2)
+                            : hit.has-hover ? #353535 : transparent;
                         accessible-role: button;
                         accessible-label: option.label;
                         accessible-enabled: !option.disabled;
@@ -156,7 +159,7 @@ export component ReplicaSelect inherits FocusScope {
                             text: option.label;
                             vertical-alignment: center;
                             font-size: root.label-size;
-                            color: option.disabled ? #737373 : #e5e5e5;
+                            color: option.disabled ? #737373 : index == root.cursor ? ReplicaColors.amber : #e5e5e5;
                             overflow: elide;
                         }
                         hit := TouchArea {

@@ -1,42 +1,26 @@
 import { ScrollView } from "std-widgets.slint";
 import { ReplicaButton, ReplicaColors } from "foundation.slint";
-
-component AccountAvatar inherits Rectangle {
-    in property <image> picture;
-    in property <int> index;
-    in property <bool> reduced-motion;
-    width: 64px;
-    height: 82px;
-
-    Image {
-        x: 6px;
-        y: pointer.has-hover && !root.reduced-motion ? 5px : 16px;
-        width: 52px;
-        height: 50px;
-        source: root.picture;
-        accessible-role: none;
-        property <angle> phase: root.reduced-motion ? 0deg : 360deg * mod(animation-tick() + root.index * 410ms, 2400ms) / 2400ms;
-        transform-rotation: root.reduced-motion ? 0deg : pointer.has-hover ? 8deg : 2deg * sin(self.phase);
-        animate y { duration: root.reduced-motion ? 0ms : 180ms; easing: cubic-bezier(0.23, 1, 0.32, 1); }
-    }
-    if pointer.has-hover: Rectangle {
-        x: 55px; y: 8px; width: 5px; height: 5px;
-        transform-rotation: 45deg;
-        background: ReplicaColors.amber;
-    }
-    pointer := TouchArea {}
-}
+import { AccountCharacters } from "account-characters.slint";
 
 component RegistrationField inherits VerticalLayout {
     in property <string> label;
     in property <string> placeholder;
     in property <bool> masked;
     in-out property <string> value;
+    in property <int> focus-request;
     callback edited();
     callback submit();
 
     spacing: 6px;
-    public function focus-input() { field.focus(); }
+    init => { focus-timer.running = root.focus-request > 0; }
+    changed focus-request => { focus-timer.running = root.focus-request > 0; }
+    focus-timer := Timer {
+        interval: 1ms;
+        triggered => {
+            self.running = false;
+            field.focus();
+        }
+    }
 
     Text {
         text: root.label;
@@ -71,7 +55,7 @@ component RegistrationField inherits VerticalLayout {
             text <=> root.value;
             font-size: 14px;
             color: ReplicaColors.strong-text;
-            selection-background-color: #fbbf2466;
+            selection-background-color: ReplicaColors.amber.with-alpha(0.4);
             vertical-alignment: center;
             single-line: true;
             input-type: root.masked ? InputType.password : InputType.text;
@@ -85,6 +69,8 @@ component RegistrationField inherits VerticalLayout {
 export component RegistrationWindow inherits Window {
     title: root.login ? "Реплика · Вход" : "Реплика · Регистрация";
     in-out property <bool> login;
+    in property <bool> setup-offer;
+    callback begin-setup();
     in property <bool> reduced-motion;
     no-frame: true;
     preferred-width: 444px;
@@ -101,10 +87,11 @@ export component RegistrationWindow inherits Window {
     callback dismiss();
     callback drag-requested();
     callback submit();
+    private property <int> form-focus-request;
 
     public function prepare-form() {
         scroll.viewport-y = 0px;
-        if root.login { email-field.focus-input(); } else { name-field.focus-input(); }
+        root.form-focus-request += 1;
     }
     public function reveal-feedback() {
         scroll.viewport-y = min(0px, scroll.visible-height - scroll.viewport-height);
@@ -165,6 +152,8 @@ export component RegistrationWindow inherits Window {
             }
 
             scroll := ScrollView {
+                visible: !root.setup-offer;
+                enabled: !root.setup-offer;
                 x: 0px;
                 y: 49px;
                 width: parent.width;
@@ -182,14 +171,8 @@ export component RegistrationWindow inherits Window {
                     padding-bottom: 20px;
                     spacing: 18px;
                     alignment: start;
-                    HorizontalLayout {
-                        alignment: center;
-                        spacing: 8px;
-                        for picture[index] in [@image-url("assets/common/clover.png"), @image-url("assets/common/flower.png"), @image-url("assets/common/ghost.png")]: AccountAvatar {
-                            picture: picture;
-                            index: index;
-                            reduced-motion: root.reduced-motion;
-                        }
+                    if !root.setup-offer: AccountCharacters {
+                        reduced-motion: root.reduced-motion;
                     }
 
                     VerticalLayout {
@@ -212,17 +195,18 @@ export component RegistrationWindow inherits Window {
                     VerticalLayout {
                         spacing: 12px;
 
-                        name-field := RegistrationField {
-                            visible: !root.login;
+                        if !root.login: RegistrationField {
                             label: "Имя";
                             placeholder: "Например, Анна";
+                            focus-request: root.form-focus-request;
                             value <=> root.account-name;
                             edited => { root.status = ""; }
                             submit => { root.submit(); }
                         }
-                        email-field := RegistrationField {
+                        RegistrationField {
                             label: "Электронная почта";
                             placeholder: "name@example.com";
+                            focus-request: root.login ? root.form-focus-request : 0;
                             value <=> root.email;
                             edited => { root.status = ""; }
                             submit => { root.submit(); }
@@ -273,6 +257,29 @@ export component RegistrationWindow inherits Window {
                         }
                     }
                 }
+            }
+            if root.setup-offer: VerticalLayout {
+                x: 28px;
+                y: 80px;
+                width: parent.width - 56px;
+                height: self.preferred-height;
+                spacing: 18px;
+                Text { text: "Демо-аккаунт создан"; color: #86efac; font-size: 13px; }
+                Text { text: "Завершите настройку"; color: #f5f5f5; font-size: 25px; font-weight: 700; wrap: word-wrap; }
+                Text {
+                    text: "Расскажите агенту о своём опыте своими словами. Текстом или голосом.";
+                    color: #a3a3a3;
+                    font-size: 14px;
+                    wrap: word-wrap;
+                }
+                Text {
+                    text: "Это поможет подстроить будущие подсказки под ваш стиль.";
+                    color: #e5e5e5;
+                    font-size: 14px;
+                    wrap: word-wrap;
+                }
+                ReplicaButton { caption: "Начать диалог"; variant: "primary"; clicked => { root.begin-setup(); } }
+                ReplicaButton { caption: "Позже"; variant: "ghost"; clicked => { root.dismiss(); } }
             }
         }
     }

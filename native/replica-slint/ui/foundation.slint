@@ -1,6 +1,6 @@
 export global ReplicaColors {
-    out property <color> amber: #fbbf24;
-    out property <color> amber-light: #fcd34d;
+    in property <color> amber: #fbbf24;
+    out property <color> amber-light: amber.brighter(0.18);
     out property <color> background: #000000;
     out property <color> surface: #0a0a0a;
     out property <color> panel: #121212;
@@ -152,7 +152,7 @@ export component ReplicaButton inherits FocusScope {
             : root.primary ? (pointer.has-hover && root.enabled ? ReplicaColors.amber-light : ReplicaColors.amber)
             : root.ghost ? transparent : (pointer.has-hover && root.enabled ? #737373 : ReplicaColors.edge);
         background: root.primary ? (pointer.has-hover && root.enabled ? ReplicaColors.amber-light : ReplicaColors.amber)
-            : pointer.has-hover && root.enabled ? (root.variant == "accent" ? #fbbf241a : ReplicaColors.raised)
+            : pointer.has-hover && root.enabled ? (root.variant == "accent" ? ReplicaColors.amber.with-alpha(0.1) : ReplicaColors.raised)
             : root.ghost ? transparent : ReplicaColors.control;
         opacity: root.enabled ? 1 : 0.45;
 

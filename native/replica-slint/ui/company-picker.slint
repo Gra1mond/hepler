@@ -1,6 +1,6 @@
 import { ScrollView } from "std-widgets.slint";
 import { ChatButton } from "chat.slint";
-import { CompanyBadge, UiText } from "foundation.slint";
+import { CompanyBadge, ReplicaColors, UiText } from "foundation.slint";
 
 export struct CompanyRow {
     id: string,
@@ -30,8 +30,8 @@ component CompanyCard inherits FocusScope {
     }
 
     Rectangle {
-        background: root.selected ? #fbbf241a : mouse.has-hover ? #262626 : #171717;
-        border-color: root.keyboard-focus ? #fbbf24 : root.selected ? #fbbf2480 : #404040;
+        background: root.selected ? ReplicaColors.amber.with-alpha(0.102) : mouse.has-hover ? #262626 : #171717;
+        border-color: root.keyboard-focus ? ReplicaColors.amber : root.selected ? ReplicaColors.amber.with-alpha(0.502) : #404040;
         border-width: root.keyboard-focus ? 2px : 1px;
         border-radius: 8px;
 
@@ -54,7 +54,7 @@ component CompanyCard inherits FocusScope {
             Text {
                 min-width: 0px;
                 text: root.company.name;
-                color: root.selected ? #fcd34d : #e5e5e5;
+                color: root.selected ? ReplicaColors.amber-light : #e5e5e5;
                 font-size: 14px;
                 font-weight: 500;
                 vertical-alignment: center;
@@ -67,7 +67,7 @@ component CompanyCard inherits FocusScope {
                     width: 15px;
                     height: 15px;
                     source: @image-url("assets/chat/check.svg");
-                    colorize: #fbbf24;
+                    colorize: ReplicaColors.amber;
                 }
             }
         }
@@ -231,7 +231,7 @@ export component CompanyPicker inherits Rectangle {
                                 label: "Добавить свою компанию";
                                 caption: "Добавить свою компанию";
                                 icon: @image-url("assets/chat/plus.svg");
-                                icon-color: #fbbf24;
+                                icon-color: ReplicaColors.amber;
                                 show-icon: true;
                                 clicked => { root.adding = true; }
                             }
@@ -252,7 +252,7 @@ export component CompanyPicker inherits Rectangle {
                         Rectangle {
                             height: 37px;
                             background: #171717;
-                            border-color: name-input.has-focus ? #fbbf24 : #404040;
+                            border-color: name-input.has-focus ? ReplicaColors.amber : #404040;
                             border-width: name-input.has-focus ? 2px : 1px;
                             border-radius: 8px;
                             if root.name == "": Text {
@@ -270,6 +270,7 @@ export component CompanyPicker inherits Rectangle {
                                 font-size: 14px;
                                 color: #e5e5e5;
                                 vertical-alignment: center;
+                                selection-background-color: ReplicaColors.amber.with-alpha(0.4);
                                 accessible-label: "Название компании";
                                 accepted => { root.confirm(); }
                             }

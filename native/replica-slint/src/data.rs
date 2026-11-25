@@ -1,3 +1,4 @@
+use crate::onboarding::StyleSetup;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde::{Deserialize, Serialize};
 use slint::{Image, Rgba8Pixel, SharedPixelBuffer};
@@ -48,11 +49,7 @@ const BUILT_IN: [(&str, &str, &[u8]); 6] = [
         "Авито",
         include_bytes!("../ui/assets/companies/avito.png"),
     ),
-    (
-        "vk",
-        "VK",
-        include_bytes!("../ui/assets/companies/vk.png"),
-    ),
+    ("vk", "VK", include_bytes!("../ui/assets/companies/vk.png")),
     (
         "tbank",
         "Т-Банк",
@@ -219,6 +216,11 @@ pub struct Preferences {
     pub custom_companies: Vec<Company>,
     pub interviews: Vec<InterviewLog>,
     pub interview: Option<Interview>,
+    pub accent: u32,
+    pub role: String,
+    pub account_name: String,
+    pub account_email: String,
+    pub style: StyleSetup,
 }
 
 impl Default for Preferences {
@@ -239,6 +241,11 @@ impl Default for Preferences {
             custom_companies: Vec::new(),
             interviews: Vec::new(),
             interview: None,
+            accent: 0xfbbf24,
+            role: String::new(),
+            account_name: String::new(),
+            account_email: String::new(),
+            style: StyleSetup::default(),
         }
     }
 }

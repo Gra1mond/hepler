@@ -1,0 +1,296 @@
+import { ScrollView } from "std-widgets.slint";
+import { ProfileAction, ProfileColors } from "profile.slint";
+
+export struct StyleMessage {
+    user: bool,
+    text: string,
+}
+
+component StyleHeading inherits Text {
+    color: ProfileColors.text;
+    font-size: 24px;
+    font-weight: 600;
+    wrap: word-wrap;
+}
+
+component StyleNote inherits Text {
+    color: ProfileColors.muted;
+    font-size: 14px;
+    wrap: word-wrap;
+}
+
+component StyleEditor inherits Rectangle {
+    in-out property <string> text <=> editor.text;
+    in property <string> label;
+    in property <string> placeholder-text;
+    in property <bool> enabled: true;
+    callback key-pressed(KeyEvent) -> EventResult;
+
+    forward-focus: editor;
+    background: #191919;
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: #262626;
+
+    ContextMenuArea {
+        enabled: root.enabled;
+        Menu {
+            MenuItem { title: "Вырезать"; activated => { editor.cut(); } }
+            MenuItem { title: "Копировать"; activated => { editor.copy(); } }
+            MenuItem { title: "Вставить"; activated => { editor.paste(); } }
+            MenuItem { title: "Выделить всё"; activated => { editor.select-all(); } }
+        }
+    }
+    scroll := ScrollView {
+        x: 12px;
+        y: 10px;
+        width: parent.width - 24px;
+        height: parent.height - 20px;
+        horizontal-scrollbar-policy: always-off;
+        viewport-width: self.visible-width;
+        viewport-height: max(self.visible-height, editor.preferred-height);
+
+        editor := TextInput {
+            width: scroll.visible-width;
+            height: scroll.viewport-height;
+            enabled: root.enabled;
+            font-size: 15px;
+            color: root.enabled ? ProfileColors.text : ProfileColors.muted;
+            single-line: false;
+            wrap: word-wrap;
+            selection-background-color: ProfileColors.amber.with-alpha(0.4);
+            selection-foreground-color: #ffffff;
+            accessible-label: root.label;
+            accessible-placeholder-text: root.placeholder-text;
+            key-pressed(event) => {
+                if event.modifiers.control && !event.modifiers.shift && !event.modifiers.alt && self.preedit-text == "" {
+                    let key = event.text.to-lowercase();
+                    if key == "ф" { self.select-all(); return accept; }
+                    if key == "с" { self.copy(); return accept; }
+                    if key == "м" { self.paste(); return accept; }
+                    if key == "ч" { self.cut(); return accept; }
+                }
+                return root.key-pressed(event);
+            }
+            cursor-position-changed(position) => {
+                if position.y + scroll.viewport-y < 0px {
+                    scroll.viewport-y = -position.y;
+                } else if position.y + scroll.viewport-y > scroll.visible-height - 20px {
+                    scroll.viewport-y = min(0px, scroll.visible-height - position.y - 20px);
+                }
+            }
+        }
+        if root.text == "" && editor.preedit-text == "": StyleNote {
+            width: scroll.visible-width;
+            text: root.placeholder-text;
+            font-size: 15px;
+            accessible-role: none;
+        }
+    }
+    if editor.has-focus: Rectangle {
+        x: 4px;
+        y: parent.height - 2px;
+        width: parent.width - 8px;
+        height: 2px;
+        background: ProfileColors.amber;
+    }
+}
+
+component StyleMessageBubble inherits Rectangle {
+    in property <StyleMessage> message;
+    background: root.message.user ? ProfileColors.amber.with-alpha(0.05) : #171717;
+    border-width: 1px;
+    border-color: root.message.user ? ProfileColors.amber.with-alpha(0.2) : ProfileColors.border;
+    border-radius: 10px;
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 5px;
+        Text {
+            text: root.message.user ? "Вы" : "Реплика";
+            color: root.message.user ? ProfileColors.amber : ProfileColors.muted;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        Text {
+            text: root.message.text;
+            color: ProfileColors.text;
+            font-size: 15px;
+            wrap: word-wrap;
+        }
+    }
+}
+
+export component AnswerStylePage inherits Rectangle {
+    in property <[StyleMessage]> messages;
+    in-out property <string> draft;
+    in-out property <string> summary;
+    in property <bool> recording;
+    in property <bool> processing;
+    in property <string> issue;
+    in property <bool> ready-to-save;
+    in property <bool> complete;
+    callback send(string);
+    callback start-voice();
+    callback stop-voice();
+    callback cancel-voice();
+    callback save(string);
+    callback restart();
+
+    property <bool> voice-active: root.recording || root.processing;
+    property <bool> can-send: !root.voice-active && root.draft != "";
+    min-width: 0px;
+    horizontal-stretch: 1;
+    vertical-stretch: 0;
+
+    VerticalLayout {
+        alignment: start;
+        spacing: 18px;
+
+        VerticalLayout {
+            spacing: 6px;
+            StyleHeading { text: "Стиль ответов"; }
+            StyleNote { text: "Ответьте на несколько открытых вопросов, чтобы Реплика формулировала ответы в вашем стиле."; }
+        }
+
+        if root.messages.length > 0: Rectangle {
+            height: min(316px, max(88px, transcript-content.preferred-height));
+            border-radius: 12px;
+            border-color: ProfileColors.border;
+            border-width: 1px;
+            background: ProfileColors.surface;
+            transcript := ScrollView {
+                horizontal-scrollbar-policy: always-off;
+                viewport-width: self.visible-width;
+                viewport-height: max(self.visible-height, transcript-content.preferred-height);
+                changed viewport-height => {
+                    self.viewport-y = min(0px, self.visible-height - self.viewport-height);
+                }
+                transcript-content := VerticalLayout {
+                    width: transcript.visible-width;
+                    height: self.preferred-height;
+                    spacing: 10px;
+                    padding: 12px;
+                    for item in root.messages: HorizontalLayout {
+                        alignment: item.user ? end : start;
+                        StyleMessageBubble {
+                            preferred-width: min(parent.width * 0.9, 660px);
+                            max-width: 660px;
+                            message: item;
+                        }
+                    }
+                }
+            }
+        }
+
+        if !root.ready-to-save && !root.complete: Rectangle {
+            border-width: 1px;
+            border-radius: 12px;
+            border-color: ProfileColors.border;
+            background: ProfileColors.surface;
+
+            VerticalLayout {
+                padding: 14px;
+                spacing: 10px;
+                Text {
+                    text: "Ваш ответ";
+                    color: ProfileColors.text;
+                    font-size: 14px;
+                    font-weight: 500;
+                }
+                answer-editor := StyleEditor {
+                    text <=> root.draft;
+                    height: 112px;
+                    enabled: !root.voice-active;
+                    placeholder-text: "Напишите ответ или запишите его голосом";
+                    label: "Ваш ответ";
+                    changed enabled => { if self.enabled { self.focus(); } }
+                    key-pressed(event) => {
+                        if event.text == Key.Return && event.modifiers.control && root.can-send {
+                            root.send(root.draft);
+                            return accept;
+                        }
+                        return reject;
+                    }
+                }
+                if root.voice-active: StyleNote {
+                    text: root.recording ? "Идёт запись. Нажмите «Остановить», чтобы получить текст." : "Распознаём запись. Затем текст можно отредактировать.";
+                }
+                HorizontalLayout {
+                    alignment: start;
+                    spacing: 8px;
+                    if !root.voice-active: ProfileAction {
+                        label: "Записать";
+                        accessibility-label: "Записать ответ голосом";
+                        activated => { root.start-voice(); }
+                    }
+                    if root.recording: ProfileAction {
+                        label: "Остановить";
+                        activated => { root.stop-voice(); }
+                    }
+                    if root.voice-active: ProfileAction {
+                        label: "Отмена";
+                        accessibility-label: "Отменить голосовой ввод";
+                        activated => { root.cancel-voice(); answer-editor.focus(); }
+                    }
+                    if !root.voice-active: ProfileAction {
+                        label: "Отправить";
+                        variant: "primary";
+                        enabled: root.can-send;
+                        activated => { root.send(root.draft); answer-editor.focus(); }
+                    }
+                }
+            }
+        }
+
+        if root.issue != "": Text {
+            text: root.issue;
+            color: ProfileColors.amber;
+            font-size: 14px;
+            wrap: word-wrap;
+        }
+
+        if root.ready-to-save || root.complete: Rectangle {
+            border-width: 1px;
+            border-color: ProfileColors.border;
+            border-radius: 12px;
+            background: ProfileColors.surface;
+            VerticalLayout {
+                padding: 14px;
+                spacing: 10px;
+                Text {
+                    text: root.complete ? "Сохранённый стиль" : "Описание стиля";
+                    color: ProfileColors.text;
+                    font-size: 16px;
+                    font-weight: 600;
+                }
+                if !root.complete: StyleNote { text: "Проверьте описание и отредактируйте его перед сохранением."; }
+                if !root.complete: StyleEditor {
+                    text <=> root.summary;
+                    height: 140px;
+                    label: "Описание стиля ответов";
+                }
+                if root.complete: Text {
+                    text: root.summary;
+                    color: ProfileColors.text;
+                    font-size: 15px;
+                    wrap: word-wrap;
+                }
+                HorizontalLayout {
+                    alignment: start;
+                    spacing: 8px;
+                    if !root.complete: ProfileAction {
+                        label: "Сохранить";
+                        variant: "primary";
+                        enabled: root.summary != "";
+                        activated => { root.save(root.summary); }
+                    }
+                    ProfileAction {
+                        label: "Начать заново";
+                        activated => { root.restart(); }
+                    }
+                }
+            }
+        }
+    }
+}

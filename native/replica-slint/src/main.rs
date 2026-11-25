@@ -1,7 +1,9 @@
-#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+#![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod chat;
 mod data;
+mod onboarding;
+mod voice;
 
 use chat::{ChatState, RowStatus};
 use chrono::{SecondsFormat, Utc};
@@ -20,7 +22,7 @@ const NAVIGATION: [(&str, &str); 6] = [
     ("home", "Главная"),
     ("chat", "Собеседование"),
     ("materials", "Материалы"),
-    ("settings", "Настройки агента"),
+    ("settings", "Настройки"),
     ("records", "Записи"),
     ("profile", "Профиль"),
 ];
@@ -40,12 +42,18 @@ struct Runtime {
     chats: [RefCell<ChatState>; 2],
     examples: Vec<Question>,
     pending_logo: RefCell<Option<String>>,
+    pending_role: RefCell<String>,
+    voice: RefCell<Option<voice::VoiceCapture>>,
     fail_next: RefCell<bool>,
     icons: [slint::Image; 6],
 }
 
 fn list<T: Clone + 'static>(values: impl IntoIterator<Item = T>) -> ModelRc<T> {
     ModelRc::new(VecModel::from(values.into_iter().collect::<Vec<_>>()))
+}
+
+fn rgb_color(rgb: u32) -> slint::Color {
+    slint::Color::from_rgb_u8((rgb >> 16) as u8, (rgb >> 8) as u8, rgb as u8)
 }
 
 impl Runtime {
@@ -74,6 +82,8 @@ impl Runtime {
             chats: std::array::from_fn(|_| RefCell::default()),
             examples: data::examples(),
             pending_logo: RefCell::default(),
+            pending_role: RefCell::default(),
+            voice: RefCell::default(),
             fail_next: RefCell::default(),
         }))
     }
@@ -102,6 +112,28 @@ impl Runtime {
 
     fn render_preferences(&self) {
         let prefs = self.prefs.borrow();
+        let accent = rgb_color(prefs.accent);
+        self.main.global::<ReplicaColors>().set_amber(accent);
+        self.compact.global::<ReplicaColors>().set_amber(accent);
+        self.registration
+            .global::<ReplicaColors>()
+            .set_amber(accent);
+        self.main
+            .set_account_name(prefs.account_name.as_str().into());
+        self.main
+            .set_account_email(prefs.account_email.as_str().into());
+        self.main
+            .set_setup_notice(!prefs.account_email.is_empty() && prefs.style.saved.is_empty());
+        self.main.set_style_complete(!prefs.style.saved.is_empty());
+        self.main
+            .set_style_ready(prefs.style.answers.len() >= 3 && prefs.style.saved.is_empty());
+        self.main
+            .set_style_messages(list(prefs.style.messages().into_iter().map(
+                |(user, text)| StyleMessage {
+                    user,
+                    text: text.into(),
+                },
+            )));
         let companies = data::companies(&prefs.custom_companies);
         let company = prefs
             .interview
@@ -179,19 +211,25 @@ impl Runtime {
     }
 
     fn navigate(&self, page: &str) {
-        if page == "chat" {
+        let needs_role = if page == "chat" {
             let prefs = self.prefs.borrow();
-            if prefs.can_chat() && prefs.interview.is_none() {
-                self.main.set_show_companies(true);
-                return;
-            }
+            prefs.can_chat() && prefs.interview.is_none()
+        } else {
+            false
+        };
+        if needs_role {
+            self.open_role_picker();
+            return;
         }
         self.show_page(page);
     }
 
     fn show_page(&self, page: &str) {
+        if self.main.get_page() == "profile/style" && page != "profile/style" {
+            self.cancel_voice();
+        }
         let profile = match page {
-            "profile" | "profile/materials" => page,
+            "profile" | "profile/materials" | "profile/style" => page,
             value if value.starts_with("profile/interviews") => "profile/interviews",
             value if value.starts_with("usage") => "usage",
             _ => "",
@@ -199,7 +237,9 @@ impl Runtime {
         self.main.set_title_label(
             NAVIGATION
                 .iter()
-                .find(|(route, _)| *route == page)
+                .find(|(route, _)| {
+                    *route == page || (*route == "settings" && page == "settings/personalization")
+                })
                 .map_or("Профиль", |(_, title)| *title)
                 .into(),
         );
@@ -212,6 +252,92 @@ impl Runtime {
         if profile == "profile/interviews" {
             self.render_interviews(page);
         }
+    }
+
+    fn sync_style_summary(&self) {
+        let prefs = self.prefs.borrow();
+        let value = if !prefs.style.saved.is_empty() {
+            prefs.style.saved.clone()
+        } else if prefs.style.answers.len() >= 3 {
+            prefs.style.suggested_summary()
+        } else {
+            String::new()
+        };
+        self.main.set_style_summary(value.into());
+    }
+
+    fn start_voice(self: &Rc<Self>) {
+        if self.voice.borrow().is_some() {
+            return;
+        }
+        self.main.set_style_issue("".into());
+        match voice::VoiceCapture::start("ru-RU") {
+            Ok(capture) => {
+                self.voice.replace(Some(capture));
+                self.main.set_voice_recording(true);
+                Self::poll_voice(Rc::downgrade(self));
+            }
+            Err(issue) => self.main.set_style_issue(issue.into()),
+        }
+    }
+
+    fn poll_voice(weak: std::rc::Weak<Self>) {
+        Timer::single_shot(Duration::from_millis(100), move || {
+            let Some(app) = weak.upgrade() else { return };
+            let outcome = {
+                let mut voice = app.voice.borrow_mut();
+                let Some(capture) = voice.as_mut() else {
+                    return;
+                };
+                capture.poll()
+            };
+            let Some(outcome) = outcome else {
+                Self::poll_voice(weak);
+                return;
+            };
+            app.voice.take();
+            app.main.set_voice_recording(false);
+            app.main.set_voice_processing(false);
+            match outcome {
+                Ok(text) => {
+                    let draft = app.main.get_style_draft();
+                    let joined = if draft.trim().is_empty() {
+                        text
+                    } else {
+                        format!("{} {}", draft.trim_end(), text)
+                    };
+                    app.main.set_style_draft(joined.into());
+                }
+                Err(issue) => app.main.set_style_issue(issue.into()),
+            }
+        });
+    }
+
+    fn stop_voice(&self) {
+        let outcome = self
+            .voice
+            .borrow_mut()
+            .as_mut()
+            .map(voice::VoiceCapture::stop);
+        match outcome {
+            Some(Ok(())) => {
+                self.main.set_voice_recording(false);
+                self.main.set_voice_processing(true);
+            }
+            Some(Err(issue)) => {
+                self.cancel_voice();
+                self.main.set_style_issue(issue.into());
+            }
+            None => {}
+        }
+    }
+
+    fn cancel_voice(&self) {
+        if let Some(capture) = self.voice.take() {
+            capture.cancel();
+        }
+        self.main.set_voice_recording(false);
+        self.main.set_voice_processing(false);
     }
 
     fn render_interviews(&self, page: &str) {
@@ -339,8 +465,14 @@ impl Runtime {
             self.show_page("settings");
             self.main.set_show_connection(true);
         } else {
-            self.main.set_show_companies(true);
+            self.open_role_picker();
         }
+    }
+
+    fn open_role_picker(&self) {
+        let prefs = self.prefs.borrow();
+        self.main.set_selected_role(prefs.role.as_str().into());
+        self.main.set_show_roles(true);
     }
 
     fn new_interview(&self, selected: Option<Company>, id: Option<String>) {
@@ -349,6 +481,7 @@ impl Runtime {
             company_id: id,
         };
         self.update_preferences(|prefs| {
+            prefs.role = self.pending_role.take();
             if let Some(company) = selected {
                 prefs.custom_companies.push(company);
             }
@@ -531,6 +664,7 @@ impl Runtime {
             }
         });
         chat.set_request_context(&prefs.format, materials);
+        chat.set_personalization(&prefs.role, &prefs.style.saved);
         let attempt = match retry {
             Some(id) => chat.retry(id),
             None => chat.submit(),
@@ -738,6 +872,7 @@ fn main() -> Result<(), slint::PlatformError> {
     wire(&runtime);
     runtime.filter_navigation("");
     runtime.render_preferences();
+    runtime.sync_style_summary();
     runtime.render_chat(ChatWindow::Main);
     runtime.render_chat(ChatWindow::Compact);
     let reduce = std::env::args().any(|arg| arg == "--reduced-motion") || reduced_motion();
@@ -771,6 +906,14 @@ fn reduced_motion() -> bool {
 }
 
 fn wire(runtime: &Rc<Runtime>) {
+    runtime
+        .main
+        .global::<PersonalizationText>()
+        .on_parse_hex(|value| {
+            onboarding::parse_hex(&value)
+                .map(rgb_color)
+                .unwrap_or_else(|| slint::Color::from_argb_u8(0, 0, 0, 0))
+        });
     for ui in [
         runtime.main.global::<UiText>(),
         runtime.compact.global::<UiText>(),
@@ -844,6 +987,47 @@ fn wire(runtime: &Rc<Runtime>) {
     bind!(runtime.main, on_search, |app, query| app
         .filter_navigation(&query));
     bind!(runtime.main, on_begin_interview, |app| app.start_picker());
+    bind!(runtime.main, on_apply_accent, |app, color| {
+        if color.alpha() == 255 {
+            let rgb = u32::from_be_bytes([0, color.red(), color.green(), color.blue()]);
+            app.update_preferences(|prefs| prefs.accent = rgb);
+        }
+    });
+    bind!(runtime.main, on_choose_role, |app, role| {
+        if matches!(role.as_str(), "backend" | "frontend") {
+            app.pending_role.replace(role.to_string());
+            app.main.set_show_roles(false);
+            app.main.set_show_companies(true);
+        }
+    });
+    bind!(runtime.main, on_dismiss_role, |app| app
+        .main
+        .set_show_roles(false));
+    bind!(runtime.main, on_send_style, |app, answer| {
+        if !answer.trim().is_empty() {
+            app.update_preferences(|prefs| prefs.style.answer(&answer));
+            app.main.set_style_issue("".into());
+            app.main.set_style_draft("".into());
+            app.sync_style_summary();
+        }
+    });
+    bind!(runtime.main, on_start_voice, |app| app.start_voice());
+    bind!(runtime.main, on_stop_voice, |app| app.stop_voice());
+    bind!(runtime.main, on_cancel_voice, |app| app.cancel_voice());
+    bind!(runtime.main, on_save_style, |app, summary| {
+        let summary: String = summary.trim().chars().take(2000).collect();
+        if !summary.is_empty() && app.prefs.borrow().style.answers.len() >= 3 {
+            app.update_preferences(|prefs| prefs.style.saved = summary);
+            app.sync_style_summary();
+        }
+    });
+    bind!(runtime.main, on_restart_style, |app| {
+        app.cancel_voice();
+        app.update_preferences(|prefs| prefs.style = onboarding::StyleSetup::default());
+        app.main.set_style_issue("".into());
+        app.main.set_style_draft("".into());
+        app.sync_style_summary();
+    });
     bind!(runtime.main, on_connect, |app, model| app.connect(&model));
     bind!(runtime.main, on_demo_error, |app| {
         app.fail_next.replace(true);
@@ -854,6 +1038,7 @@ fn wire(runtime: &Rc<Runtime>) {
     bind!(runtime.main, on_select_company, |app, id| app
         .new_interview(None, (!id.is_empty()).then(|| id.to_string())));
     bind!(runtime.main, on_dismiss_company, |app| {
+        app.pending_role.take();
         app.clear_logo();
         app.main.set_show_companies(false);
     });
@@ -929,18 +1114,27 @@ fn wire(runtime: &Rc<Runtime>) {
     );
     bind!(runtime.main, on_register, |app| {
         app.registration.set_login(false);
+        app.registration.set_setup_offer(false);
         if app.registration.show().is_ok() {
             focus(app.registration.window());
             app.registration.invoke_prepare_form();
         }
     });
     bind!(runtime.registration, on_dismiss, |app| {
+        if app.registration.get_setup_offer() {
+            app.registration.set_setup_offer(false);
+            app.show_page("profile");
+        }
         let _ = app.registration.hide();
         app.registration.set_account_name("".into());
         app.registration.set_email("".into());
         app.registration.set_password("".into());
         app.registration.set_status("".into());
         focus(app.main.window());
+    });
+    bind!(runtime.registration, on_begin_setup, |app| {
+        app.registration.invoke_dismiss();
+        app.show_page("profile/style");
     });
     bind!(runtime.registration, on_drag_requested, |app| {
         app.registration.window().with_winit_window(|native| {
@@ -967,6 +1161,19 @@ fn wire(runtime: &Rc<Runtime>) {
                 .into(),
         );
         if result.is_ok() {
+            if !form.get_login() {
+                let email = form.get_email().trim().to_owned();
+                app.update_preferences(|prefs| {
+                    if !prefs.account_email.eq_ignore_ascii_case(&email) {
+                        prefs.style = onboarding::StyleSetup::default();
+                    }
+                    prefs.account_name = name.trim().to_owned();
+                    prefs.account_email = email;
+                });
+                app.main.set_style_draft("".into());
+                app.sync_style_summary();
+                form.set_setup_offer(app.main.get_setup_notice());
+            }
             form.set_account_name("".into());
             form.set_email("".into());
             form.set_password("".into());
@@ -976,6 +1183,7 @@ fn wire(runtime: &Rc<Runtime>) {
     let weak = Rc::downgrade(runtime);
     runtime.main.window().on_close_requested(move || {
         if let Some(app) = weak.upgrade() {
+            app.cancel_voice();
             let _ = app.compact.hide();
             let _ = app.registration.hide();
         }

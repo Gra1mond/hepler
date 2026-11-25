@@ -1,0 +1,129 @@
+component AccountCharacter inherits Rectangle {
+    in property <string> shape;
+    in property <color> light;
+    in property <color> shade;
+    in property <int> index;
+    in property <bool> reduced-motion;
+
+    height: 82px;
+    horizontal-stretch: 1;
+    clip: true;
+    accessible-role: none;
+
+    property <duration> clock: root.reduced-motion ? 0ms : animation-tick();
+    property <duration> last-click: -8000ms;
+    property <duration> click-age: root.clock - root.last-click;
+    property <duration> idle-age: mod(root.click-age + (root.last-click < 0ms ? root.index * 2300ms : 0ms), 8000ms);
+    property <bool> click-jump: root.click-age < 1400ms;
+    property <duration> jump-age: root.click-jump ? root.click-age : root.idle-age - 6600ms;
+    property <duration> crouch-time: root.click-jump ? 240ms : 140ms;
+    property <bool> jumping: !root.reduced-motion && root.jump-age >= 0ms && root.jump-age < root.crouch-time + 1160ms;
+    property <float> flight: root.jumping ? clamp((root.jump-age - root.crouch-time) / 680ms, 0.0, 1.0) : 0;
+    property <float> lift: 4 * root.flight * (1 - root.flight);
+    property <float> launch: root.jumping && root.jump-age < root.crouch-time
+        ? sin(90deg * root.jump-age / root.crouch-time) : 0;
+    property <float> landing: root.jumping && root.jump-age > root.crouch-time + 680ms
+        ? max(0.0, 1 - max(0.0, (root.jump-age - root.crouch-time - 910ms) / 250ms))
+            * min(1.0, (root.jump-age - root.crouch-time - 680ms) / 110ms) : 0;
+    property <float> squash: max(root.launch, root.landing);
+    property <angle> cycle: 360deg * mod(root.clock + root.index * 1220ms, 5100ms) / 5100ms;
+    property <float> breathing: root.reduced-motion ? 0 : sin(360deg * mod(root.clock + root.index * 440ms, 3100ms) / 3100ms);
+    property <float> pointer-weight: !root.reduced-motion && pointer.has-hover ? 1 : 0;
+    property <float> pointer-x: clamp(2 * pointer.mouse-x / max(1px, pointer.width) - 1, -1.0, 1.0);
+    property <float> pointer-y: clamp(2 * pointer.mouse-y / pointer.height - 1, -1.0, 1.0);
+    property <float> look-x: root.reduced-motion ? 0
+        : root.pointer-weight * root.pointer-x + (1 - root.pointer-weight) * 0.66 * sin(root.cycle);
+    property <float> look-y: root.reduced-motion ? 0
+        : root.pointer-weight * root.pointer-y + (1 - root.pointer-weight) * 0.34 * sin(root.cycle * 2);
+    animate pointer-weight, pointer-x, pointer-y { duration: root.reduced-motion ? 0ms : 150ms; easing: cubic-bezier(0.23, 1, 0.32, 1); }
+    property <angle> yaw: root.jumping ? 360deg * root.flight : 29deg * root.look-x;
+    property <float> front: cos(root.yaw);
+    property <bool> blinking: !root.reduced-motion
+        && mod(root.clock + root.index * 890ms, 4300ms) > 4180ms;
+    property <length> center: root.width / 2;
+
+    Rectangle {
+        width: 38px - 14px * root.lift;
+        height: 5px;
+        x: root.center - self.width / 2;
+        y: 73px;
+        border-radius: 3px;
+        background: #00000099;
+        opacity: 1 - 0.45 * root.lift;
+    }
+
+    Rectangle {
+        x: root.center - self.width / 2;
+        y: 22px - 14px * root.lift + 4px * root.squash + 0.7px * root.breathing;
+        width: 56px;
+        height: 51px;
+        transform-rotation: root.jumping ? 6deg * sin(180deg * root.flight) : -5deg * root.look-x;
+        transform-scale-x: max(0.37, abs(root.front)) * (1 + 0.16 * root.squash - 0.07 * root.lift);
+        transform-scale-y: 1 - 0.17 * root.squash + 0.09 * root.lift;
+
+        Path {
+            viewbox-width: 56;
+            viewbox-height: 51;
+            commands: root.shape;
+            fill: @linear-gradient(145deg, root.light 3%, root.light.darker(0.12) 42%, root.shade 95%);
+            stroke: root.light.with-alpha(0.35);
+            stroke-width: 0.8px;
+        }
+
+        Rectangle {
+            x: (parent.width - self.width) / 2 + (root.jumping ? 8px * sin(root.yaw) : 9px * root.look-x);
+            y: 24px + 5px * root.look-y;
+            width: 24px;
+            height: 20px;
+            opacity: clamp(2.2 * root.front, 0.0, 1.0);
+
+            for eye in [0, 1]: Rectangle {
+                x: eye * 16px;
+                y: root.blinking ? 4px : 0px;
+                width: 7px;
+                height: root.blinking ? 2px : 9px;
+                border-radius: 5px;
+                background: @linear-gradient(145deg, #282847, #100f23);
+            }
+        }
+    }
+
+    pointer := TouchArea {
+        x: root.center - self.width / 2;
+        width: min(78px, root.width);
+        height: parent.height;
+        mouse-cursor: root.reduced-motion ? MouseCursor.default : MouseCursor.pointer;
+        clicked => {
+            if !root.reduced-motion && !root.click-jump {
+                root.last-click = root.clock;
+            }
+        }
+    }
+}
+export component AccountCharacters inherits HorizontalLayout {
+    in property <bool> reduced-motion;
+    height: 82px;
+    spacing: 4px;
+
+    AccountCharacter {
+        index: 0;
+        reduced-motion: root.reduced-motion;
+        light: #46bcfa;
+        shade: #12618d;
+        shape: "M 28 2 C 38 1 43 9 44 16 C 53 18 56 25 53 33 C 51 39 45 41 40 41 C 37 49 30 51 24 48 C 20 47 17 43 16 39 C 7 40 2 33 3 26 C 3 21 7 16 13 14 C 15 6 21 2 28 2 Z";
+    }
+    AccountCharacter {
+        index: 1;
+        reduced-motion: root.reduced-motion;
+        light: #55ea84;
+        shade: #129046;
+        shape: "M 28 2 C 35 2 39 5 42 11 C 49 10 54 15 54 21 C 55 26 52 30 49 33 C 50 40 46 45 40 46 C 36 48 31 46 28 44 C 24 49 18 49 13 45 C 8 43 7 38 8 33 C 3 29 1 24 4 18 C 6 13 10 11 16 11 C 18 5 22 2 28 2 Z";
+    }
+    AccountCharacter {
+        index: 2;
+        reduced-motion: root.reduced-motion;
+        light: #f5f1ff;
+        shade: #9993b1;
+        shape: "M 28 2 C 42 2 51 12 51 27 L 51 42 C 51 48 46 50 42 46 Q 38 40 34 46 Q 28 51 23 46 Q 19 41 15 46 C 11 50 5 48 5 42 L 5 27 C 5 12 14 2 28 2 Z";
+    }
+}

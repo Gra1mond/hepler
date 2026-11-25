@@ -94,8 +94,8 @@ component ConnectionCard inherits Rectangle {
             height: 90px;
             border-radius: 12px;
             border-width: 1px;
-            border-color: #fbbf241a;
-            background: #fbbf240d;
+            border-color: ReplicaColors.amber.with-alpha(0.102);
+            background: ReplicaColors.amber.with-alpha(0.051);
 
             emblem := Rectangle {
                 x: (parent.width - self.width) / 2;
@@ -117,7 +117,7 @@ component ConnectionCard inherits Rectangle {
                     Rectangle {
                         border-width: 1px;
                         border-radius: 12px;
-                        border-color: #fbbf2433;
+                        border-color: ReplicaColors.amber.with-alpha(0.2);
                         background: #272110;
                     }
                 }
@@ -134,7 +134,7 @@ component ConnectionCard inherits Rectangle {
                     Rectangle {
                         border-width: 1px;
                         border-radius: 12px;
-                        border-color: #fbbf2433;
+                        border-color: ReplicaColors.amber.with-alpha(0.2);
                         background: #272110;
                     }
                 }
@@ -147,10 +147,10 @@ component ConnectionCard inherits Rectangle {
                     transform-scale-y: emblem.active ? 96% : 100%;
                     border-width: 1px;
                     border-radius: 8px;
-                    border-color: #fbbf2426;
+                    border-color: ReplicaColors.amber.with-alpha(0.149);
                     background: ReplicaColors.control;
                     drop-shadow-blur: 16px;
-                    drop-shadow-color: #fbbf242e;
+                    drop-shadow-color: ReplicaColors.amber.with-alpha(0.18);
                     animate y, transform-scale-x, transform-scale-y {
                         duration: root.reduced-motion ? 0ms : emblem.active ? 200ms : 260ms;
                         easing: cubic-bezier(0.23, 1, 0.32, 1);
@@ -253,8 +253,8 @@ component FormatCard inherits FocusScope {
     Rectangle {
         border-radius: 16px;
         border-width: root.keyboard-focus ? 2px : 1px;
-        border-color: root.keyboard-focus ? ReplicaColors.amber : root.selected ? #fbbf2466 : ReplicaColors.edge;
-        background: root.selected ? #171203 : ReplicaColors.panel;
+        border-color: root.keyboard-focus ? ReplicaColors.amber : root.selected ? ReplicaColors.amber.with-alpha(0.4) : ReplicaColors.edge;
+        background: root.selected ? ReplicaColors.amber.mix(ReplicaColors.panel, 0.07) : ReplicaColors.panel;
         panel-content := VerticalLayout {
             padding: 13px;
             spacing: 12px;
@@ -273,7 +273,7 @@ component FormatCard inherits FocusScope {
                     Rectangle {
                         border-width: 1px;
                         border-radius: 12px;
-                        border-color: root.selected ? #fbbf2473 : ReplicaColors.edge-strong;
+                        border-color: root.selected ? ReplicaColors.amber.with-alpha(0.451) : ReplicaColors.edge-strong;
                         background: ReplicaColors.raised;
                         VerticalLayout {
                             padding-left: 16px;
@@ -305,7 +305,7 @@ component FormatCard inherits FocusScope {
                             border-radius: 7px;
                             border-width: 1px;
                             border-color: root.selected ? ReplicaColors.amber : #737373;
-                            background: root.selected ? #fbbf2414 : ReplicaColors.raised;
+                            background: root.selected ? ReplicaColors.amber.with-alpha(0.078) : ReplicaColors.raised;
                             if root.selected: Rectangle {
                                 width: 8px;
                                 height: 8px;
@@ -374,7 +374,7 @@ component DialogField inherits Rectangle {
         read-only: !root.editable;
         input-type: root.secret ? InputType.password : InputType.text;
         color: ReplicaColors.strong-text;
-        selection-background-color: #fbbf2466;
+        selection-background-color: ReplicaColors.amber.with-alpha(0.4);
         font-size: 14px;
         vertical-alignment: center;
         accessible-label: root.label;
@@ -467,7 +467,7 @@ export component ConnectionDialog inherits FocusScope {
         height: min(panel.preferred-height, max(0px, parent.height - 32px));
         border-radius: 18px;
         border-width: 1px;
-        border-color: #fbbf2473;
+        border-color: ReplicaColors.amber.with-alpha(0.451);
         background: ReplicaColors.control;
         clip: true;
 

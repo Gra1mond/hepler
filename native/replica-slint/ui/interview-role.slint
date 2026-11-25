@@ -1,0 +1,274 @@
+import { ScrollView } from "std-widgets.slint";
+import { ReplicaColors } from "foundation.slint";
+
+component RoleCard inherits FocusScope {
+    in property <string> caption;
+    in property <string> description;
+    in property <bool> selected;
+    callback selected-by-user();
+
+    focus-on-tab-navigation: root.selected;
+    accessible-role: radio-button;
+    accessible-label: root.caption;
+    accessible-description: root.description;
+    accessible-checked: root.selected;
+    accessible-action-default => { root.selected-by-user(); root.focus(); }
+    key-pressed(event) => {
+        if event.text == Key.Return || event.text == " " {
+            root.selected-by-user();
+            return accept;
+        }
+        return reject;
+    }
+
+    Rectangle {
+        border-radius: 12px;
+        border-width: root.has-focus ? 2px : 1px;
+        border-color: root.selected || root.has-focus ? ReplicaColors.amber : card-hit.has-hover ? ReplicaColors.edge-strong : #333333;
+        background: root.selected ? ReplicaColors.amber.with-alpha(0.13) : ReplicaColors.control;
+
+        Rectangle {
+            x: 19px;
+            y: 24px;
+            width: 12px;
+            height: 12px;
+            border-radius: 6px;
+            border-width: root.selected ? 0px : 2px;
+            border-color: ReplicaColors.muted;
+            background: root.selected ? ReplicaColors.amber : transparent;
+        }
+        Text {
+            x: 46px;
+            y: 19px;
+            width: parent.width - 64px;
+            text: root.caption;
+            color: ReplicaColors.strong-text;
+            font-size: 17px;
+            font-weight: 700;
+            overflow: elide;
+        }
+        Text {
+            x: 18px;
+            y: 62px;
+            width: parent.width - 36px;
+            text: root.description;
+            font-size: 14px;
+            color: ReplicaColors.muted;
+            wrap: word-wrap;
+        }
+
+        card-hit := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.selected-by-user(); root.focus(); }
+        }
+    }
+}
+
+component RoleAction inherits FocusScope {
+    in property <string> caption;
+    in property <bool> primary;
+    callback invoked();
+
+    accessible-role: button;
+    accessible-label: root.caption;
+    accessible-action-default => { root.invoked(); }
+    key-pressed(event) => {
+        if event.text == Key.Return || event.text == " " {
+            root.invoked();
+            return accept;
+        }
+        return reject;
+    }
+
+    Rectangle {
+        border-radius: 8px;
+        border-width: root.has-focus ? 2px : root.primary ? 0px : 1px;
+        border-color: root.has-focus ? (root.primary ? ReplicaColors.amber.mix(#ffffff, 0.6) : ReplicaColors.amber) : #333333;
+        background: root.primary ? (button-hit.has-hover ? ReplicaColors.amber-light : ReplicaColors.amber)
+            : button-hit.has-hover ? ReplicaColors.raised : ReplicaColors.control;
+
+        Text {
+            text: root.caption;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            color: root.primary ? ReplicaColors.surface : ReplicaColors.strong-text;
+            font-size: 14px;
+            font-weight: 700;
+            wrap: word-wrap;
+        }
+
+        button-hit := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.focus(); root.invoked(); }
+        }
+    }
+}
+
+export component InterviewRolePicker inherits Rectangle {
+    in property <string> selected-role;
+    callback choose(string);
+    callback dismiss();
+
+    private property <string> pending-role: root.selected-role == "frontend" ? "frontend" : "backend";
+
+    x: 0px;
+    y: 0px;
+    background: #000000b3;
+
+    TouchArea { clicked => { root.dismiss(); } }
+
+    dialog := FocusScope {
+        x: (root.width - self.width) / 2;
+        y: (root.height - self.height) / 2;
+        width: min(620px, max(0px, root.width - 32px));
+        height: min(content-height, max(0px, root.height - 32px));
+        private property <bool> stacked: self.width < 490px;
+        private property <length> inset: self.stacked ? 20px : 32px;
+        private property <length> card-height: self.stacked ? 112px : 123px;
+        private property <length> card-width: self.stacked ? scroll.visible-width - 2 * self.inset
+            : (scroll.visible-width - 2 * self.inset - 16px) / 2;
+        private property <length> cards-top: max(173px, subtitle.y + subtitle.preferred-height + 25px);
+        private property <length> footer-top: self.cards-top + (self.stacked ? self.card-height * 2 + 16px : self.card-height) + 40px;
+        private property <length> content-height: self.footer-top + 80px;
+
+        init => {
+            if root.pending-role == "frontend" { frontend.focus(); }
+            else { backend.focus(); }
+        }
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                root.dismiss();
+                return accept;
+            }
+            if (backend.has-focus || frontend.has-focus) && (event.text == Key.LeftArrow || event.text == Key.UpArrow
+                || event.text == Key.RightArrow || event.text == Key.DownArrow) {
+                if root.pending-role == "backend" {
+                    root.pending-role = "frontend";
+                    frontend.focus();
+                } else {
+                    root.pending-role = "backend";
+                    backend.focus();
+                }
+                return accept;
+            }
+            return reject;
+        }
+
+        Rectangle {
+            background: ReplicaColors.surface;
+            border-radius: 16px;
+            clip: true;
+            TouchArea {}
+
+            scroll := ScrollView {
+                horizontal-scrollbar-policy: always-off;
+                viewport-width: self.visible-width;
+                viewport-height: dialog.content-height;
+
+                Rectangle {
+                    width: scroll.visible-width;
+                    height: dialog.content-height;
+
+                    Rectangle {
+                        x: 0px;
+                        y: 0px;
+                        height: 56px;
+                        border-top-left-radius: 16px;
+                        border-top-right-radius: 16px;
+                        background: ReplicaColors.control;
+                        Rectangle {
+                            x: 22px;
+                            y: 15px;
+                            width: 26px;
+                            height: 26px;
+                            border-radius: 8px;
+                            background: ReplicaColors.amber;
+                            Text {
+                                text: "Р";
+                                color: ReplicaColors.surface;
+                                font-size: 16px;
+                                font-weight: 700;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+                        Text {
+                            x: 60px;
+                            height: parent.height;
+                            text: "Реплика";
+                            color: ReplicaColors.strong-text;
+                            font-size: 16px;
+                            font-weight: 700;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    Text {
+                        x: dialog.inset;
+                        y: 86px;
+                        width: parent.width - 2 * dialog.inset;
+                        text: "Выберите роль";
+                        color: ReplicaColors.strong-text;
+                        font-size: 26px;
+                        font-weight: 700;
+                        wrap: word-wrap;
+                    }
+                    subtitle := Text {
+                        x: dialog.inset;
+                        y: 127px;
+                        width: parent.width - 2 * dialog.inset;
+                        text: "Подберём примеры и терминологию под вашу специализацию.";
+                        color: ReplicaColors.muted;
+                        font-size: 14px;
+                        wrap: word-wrap;
+                    }
+
+                    backend := RoleCard {
+                        x: dialog.inset;
+                        y: dialog.cards-top;
+                        width: dialog.card-width;
+                        height: dialog.card-height;
+                        caption: "Бэкенд";
+                        description: "API, базы данных и\nсерверная архитектура";
+                        selected: root.pending-role == "backend";
+                        selected-by-user => { root.pending-role = "backend"; }
+                    }
+                    frontend := RoleCard {
+                        x: dialog.stacked ? dialog.inset : dialog.inset + dialog.card-width + 16px;
+                        y: dialog.stacked ? dialog.cards-top + dialog.card-height + 16px : dialog.cards-top;
+                        width: dialog.card-width;
+                        height: dialog.card-height;
+                        caption: "Фронтенд";
+                        description: "Интерфейсы, браузер и\nвеб-производительность";
+                        selected: root.pending-role == "frontend";
+                        selected-by-user => { root.pending-role = "frontend"; }
+                    }
+
+                    RoleAction {
+                        x: dialog.inset;
+                        y: dialog.footer-top;
+                        width: min(100px, (parent.width - 2 * dialog.inset - 12px) * 0.34);
+                        height: 44px;
+                        caption: "Назад";
+                        invoked => { root.dismiss(); }
+                    }
+                    RoleAction {
+                        x: parent.width - dialog.inset - self.width;
+                        y: dialog.footer-top;
+                        width: min(195px, (parent.width - 2 * dialog.inset - 12px) * 0.66);
+                        height: 44px;
+                        caption: "Выбрать компанию";
+                        primary: true;
+                        invoked => { root.choose(root.pending-role); }
+                    }
+                }
+            }
+
+            Rectangle {
+                border-radius: 16px;
+                border-width: 1px;
+                border-color: #333333;
+            }
+        }
+    }
+}

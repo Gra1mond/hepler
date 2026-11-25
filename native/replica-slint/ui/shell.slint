@@ -1,3 +1,4 @@
+import { ReplicaColors } from "foundation.slint";
 import { ScrollView } from "std-widgets.slint";
 
 export struct NavigationItem { route: string, title: string, icon: image }
@@ -7,6 +8,7 @@ export component NavigationButton inherits FocusScope {
     in property <image> icon;
     in property <bool> active;
     in property <bool> tab-style;
+    in property <bool> has-notice;
     in property <bool> mark-active: true;
     callback activated();
     private property <bool> pointer-focus;
@@ -14,7 +16,7 @@ export component NavigationButton inherits FocusScope {
     height: root.tab-style ? 38px : 40px;
     min-width: label.preferred-width + (root.tab-style ? 16px : 50px);
     accessible-role: button;
-    accessible-label: root.title;
+    accessible-label: root.has-notice ? root.title + ", 1 уведомление" : root.title;
     accessible-action-default => { root.activated(); }
     key-pressed(event) => {
         if (event.text == " " || event.text == Key.Return) { root.activated(); return accept; }
@@ -24,21 +26,21 @@ export component NavigationButton inherits FocusScope {
         border-radius: root.tab-style ? 0px : 6px;
         background: root.tab-style ? transparent : pointer.has-hover ? #262626 : transparent;
         border-width: root.has-focus && !root.pointer-focus ? 2px : 0px;
-        border-color: #fbbf24;
+        border-color: ReplicaColors.amber;
         if root.active && root.mark-active: Rectangle {
             x: 0;
             y: root.tab-style ? parent.height - 2px : (parent.height - 18px) / 2;
             width: root.tab-style ? parent.width : 2px;
             height: root.tab-style ? 2px : 18px;
             border-radius: 1px;
-            background: #fbbf24;
+            background: ReplicaColors.amber;
         }
         if !root.tab-style: Image {
             x: 12px;
             width: 15px;
             height: 15px;
             source: root.icon;
-            colorize: root.active ? #fbbf24 : #a3a3a3;
+            colorize: root.active ? ReplicaColors.amber : #a3a3a3;
         }
         label := Text {
             x: root.tab-style ? 8px : 39px;
@@ -48,6 +50,9 @@ export component NavigationButton inherits FocusScope {
             font-weight: root.active ? (root.tab-style ? 500 : 600) : 400;
             color: root.active || (root.tab-style && pointer.has-hover) ? #f5f5f5 : #a3a3a3;
             overflow: elide;
+        }
+        if root.has-notice: Rectangle {
+            x: parent.width - 14px; y: 6px; width: 7px; height: 7px; border-radius: 4px; background: #38bdf8;
         }
         pointer := TouchArea {
             mouse-cursor: MouseCursor.pointer;
@@ -60,17 +65,17 @@ export component ProfileNavigation inherits Rectangle {
     in property <string> active;
     callback navigate(string);
     // These widths are the original Russian labels with their horizontal padding.
-    private property <[length]> tab-widths: [140px, 124px, 94px, 152px];
-    private property <[length]> tab-offsets: [0px, 160px, 304px, 418px];
-    private property <int> columns: self.width >= 570px ? 4 : self.width >= 398px ? 3 : 2;
-    height: root.columns == 4 ? 40px : 80px;
+    private property <[length]> tab-widths: [140px, 130px, 124px, 94px, 152px];
+    private property <[length]> tab-offsets: [0px, 160px, 310px, 454px, 568px];
+    private property <int> columns: self.width >= 720px ? 5 : self.width >= 548px ? 4 : self.width >= 434px ? 3 : 2;
+    height: ceil(5 / root.columns) * 40px;
 
     Rectangle { y: parent.height - 1px; height: 1px; background: #262626; }
-    for tab[index] in ["Данные аккаунта", "Собеседования", "Материалы", "Использование API"]: NavigationButton {
-        property <string> route: ["profile", "profile/interviews", "profile/materials", "usage"][index];
-        property <bool> second-row: index >= root.columns;
-        x: root.tab-offsets[index] - (self.second-row ? root.tab-offsets[root.columns] : 0px);
-        y: self.second-row ? 40px : 0px;
+    for tab[index] in ["Данные аккаунта", "Стиль ответов", "Собеседования", "Материалы", "Использование API"]: NavigationButton {
+        property <string> route: ["profile", "profile/style", "profile/interviews", "profile/materials", "usage"][index];
+        property <int> row-index: floor(index / root.columns);
+        x: root.tab-offsets[index] - root.tab-offsets[self.row-index * root.columns];
+        y: self.row-index * 40px;
         width: root.tab-widths[index];
         height: 40px;
         title: tab;
@@ -82,6 +87,7 @@ export component ProfileNavigation inherits Rectangle {
 
 export component NavigationRail inherits Rectangle {
     in property <bool> narrow;
+    in property <bool> profile-notice;
     in property <string> page;
     in property <[NavigationItem]> items;
     callback navigate(string);
@@ -115,16 +121,16 @@ export component NavigationRail inherits Rectangle {
         }
         Rectangle {
             width: 34px; height: 34px; x: 0px;
-            border-radius: 17px; background: #fbbf24;
+            border-radius: 17px; background: ReplicaColors.amber;
             Image { width: 16px; height: 16px; source: @image-url("assets/common/chat.svg"); colorize: #0a0a0a; }
         }
         Text { x: 44px; text: "Реплика"; color: #e5e5e5; font-size: 18px; font-weight: 600; vertical-alignment: center; }
-        Rectangle { border-width: brand.has-focus ? 1px : 0px; border-color: #fbbf24; border-radius: 5px; }
+        Rectangle { border-width: brand.has-focus ? 1px : 0px; border-color: ReplicaColors.amber; border-radius: 5px; }
         TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { root.navigate("home"); } }
     }
     if !root.narrow: Rectangle {
         x: 20px; y: 88px; width: parent.width - 40px; height: 42px;
-        Rectangle { y: parent.height - 1px; height: 1px; background: search-input.has-focus ? #fbbf24 : #404040; }
+        Rectangle { y: parent.height - 1px; height: 1px; background: search-input.has-focus ? ReplicaColors.amber : #404040; }
         Text {
             x: 4px; height: parent.height; vertical-alignment: center;
             visible: root.query == ""; text: "Найти раздел..."; color: #a3a3a3;
@@ -132,7 +138,7 @@ export component NavigationRail inherits Rectangle {
         search-input := TextInput {
             x: 4px; width: parent.width - 8px; height: parent.height;
             color: #e5e5e5;
-            selection-background-color: #fbbf24;
+            selection-background-color: ReplicaColors.amber;
             selection-foreground-color: #000;
             vertical-alignment: center;
             single-line: true;
@@ -158,6 +164,7 @@ export component NavigationRail inherits Rectangle {
                 property <int> requested: root.focus-request;
                 changed requested => { if root.focus-route == item.route { self.focus(); } }
                 title: item.title;
+                has-notice: item.route == "profile" && root.profile-notice;
                 icon: item.icon;
                 active: root.page == item.route;
                 activated => { root.navigate(item.route); root.query = ""; root.search(""); }
@@ -179,6 +186,7 @@ export component NavigationRail inherits Rectangle {
                 property <int> requested: root.focus-request;
                 changed requested => { if root.focus-route == item.route { self.focus(); } }
                 title: item.title;
+                has-notice: item.route == "profile" && root.profile-notice;
                 icon: item.icon;
                 active: root.page == item.route;
                 activated => { root.navigate(item.route); }
@@ -220,8 +228,8 @@ export component RecordsPage inherits VerticalLayout {
             HorizontalLayout {
                 alignment: center;
                 Rectangle {
-                    width: 48px; height: 48px; border-radius: 12px; background: #fbbf2414;
-                    Image { width: 20px; height: 20px; source: @image-url("assets/common/monitor.svg"); colorize: #fbbf24; }
+                    width: 48px; height: 48px; border-radius: 12px; background: ReplicaColors.amber.with-alpha(0.078);
+                    Image { width: 20px; height: 20px; source: @image-url("assets/common/monitor.svg"); colorize: ReplicaColors.amber; }
                 }
             }
             Rectangle { height: 24px; }

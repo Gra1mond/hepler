@@ -49,7 +49,7 @@ component DailyCosts inherits Rectangle {
                     viewbox-height: 110;
                     fit: fill;
                     commands: "M 0 66 C 50 66 50 22 100 22 C 150 22 150 55 200 55 C 250 55 250 77 300 77 C 350 77 350 44 400 44 C 450 44 450 5.5 500 5.5 C 550 5.5 550 38.5 600 38.5 L 600 110 L 0 110 Z";
-                    fill: @linear-gradient(180deg, #fbbf2438, #fbbf2400);
+                    fill: @linear-gradient(180deg, ProfileColors.amber.with-alpha(0.22), ProfileColors.amber.with-alpha(0));
                 }
                 Path {
                     x: 8px;
@@ -70,7 +70,7 @@ component DailyCosts inherits Rectangle {
                     height: 7px;
                     border-radius: 4px;
                     background: ProfileColors.amber;
-                    drop-shadow-color: #fbbf2480;
+                    drop-shadow-color: ProfileColors.amber.with-alpha(0.502);
                     drop-shadow-blur: 7px;
                 }
             }
@@ -103,7 +103,7 @@ component UsageOverview inherits Rectangle {
         x: parent.width / 4;
         width: parent.width / 2;
         height: 156px;
-        background: @radial-gradient(circle, #fbbf2426, #fbbf2400 72%);
+        background: @radial-gradient(circle, ProfileColors.amber.with-alpha(0.149), ProfileColors.amber.with-alpha(0) 72%);
     }
     body := VerticalLayout {
         padding: root.width >= 480px ? 24px : 16px;
@@ -115,7 +115,7 @@ component UsageOverview inherits Rectangle {
                 width: 40px;
                 height: 40px;
                 border-radius: 12px;
-                background: #fbbf241a;
+                background: ProfileColors.amber.with-alpha(0.102);
                 Image {
                     source: @image-url("assets/profile/usage.svg");
                     colorize: ProfileColors.amber;
@@ -190,9 +190,9 @@ component ModelCard inherits FocusScope {
     }
 
     Rectangle {
-        background: root.selected ? #15120d : #101010;
+        background: root.selected ? ProfileColors.amber.mix(#101010, 0.055) : #101010;
         border-width: root.keyboard-focus ? 2px : 1px;
-        border-color: root.keyboard-focus ? ProfileColors.amber : root.selected ? #6d5118 : hit.has-hover ? #525252 : #2b2b2b;
+        border-color: root.keyboard-focus ? ProfileColors.amber : root.selected ? ProfileColors.amber.with-alpha(0.38) : hit.has-hover ? #525252 : #2b2b2b;
         border-radius: 16px;
 
         VerticalLayout {
@@ -204,13 +204,13 @@ component ModelCard inherits FocusScope {
                 border-width: 1px;
                 border-color: #ffffff0e;
                 border-radius: 11px;
-                background: root.selected ? #17130d : #141414;
+                background: root.selected ? ProfileColors.amber.mix(#141414, 0.06) : #141414;
                 Rectangle {
                     x: parent.width * 0.12;
                     y: 17px;
                     width: parent.width * 0.76;
                     height: parent.height - 34px;
-                    background: @radial-gradient(circle, root.selected ? #fbbf2440 : #aaaaaa22, transparent 67%);
+                    background: @radial-gradient(circle, root.selected ? ProfileColors.amber.with-alpha(0.251) : #aaaaaa22, transparent 67%);
                 }
                 for right in [false, true]: Rectangle {
                     x: art.width / 2 - 24px + (root.moving ? (right ? 15px : -15px) : (right ? 7px : -6px));
@@ -219,8 +219,8 @@ component ModelCard inherits FocusScope {
                     height: 48px;
                     border-radius: 12px;
                     border-width: 1px;
-                    border-color: root.selected ? #fbbf2433 : #525252;
-                    background: root.selected ? #fbbf241a : #262626;
+                    border-color: root.selected ? ProfileColors.amber.with-alpha(0.2) : #525252;
+                    background: root.selected ? ProfileColors.amber.with-alpha(0.102) : #262626;
                     transform-rotation: root.moving ? (right ? 16deg : -16deg) : (right ? 8deg : -7deg);
                     animate x, y, transform-rotation {
                         duration: root.reduced-motion ? 0ms : 260ms;
@@ -240,7 +240,7 @@ component ModelCard inherits FocusScope {
                     }
                     border-radius: 16px;
                     border-width: 1px;
-                    border-color: root.selected ? #fbbf2440 : #404040;
+                    border-color: root.selected ? ProfileColors.amber.with-alpha(0.251) : #404040;
                     background: root.selected ? #171717 : #262626;
                     drop-shadow-color: #00000055;
                     drop-shadow-blur: 15px;
@@ -254,8 +254,8 @@ component ModelCard inherits FocusScope {
                     height: 20px;
                     border-radius: 10px;
                     border-width: 1px;
-                    border-color: #fbbf244d;
-                    background: #fbbf241a;
+                    border-color: ProfileColors.amber.with-alpha(0.302);
+                    background: ProfileColors.amber.with-alpha(0.102);
                     Image { source: @image-url("assets/profile/check.svg"); colorize: ProfileColors.amber; width: 10px; height: 10px; }
                 }
             }

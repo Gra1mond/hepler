@@ -52,6 +52,8 @@ enum AnswerFormat {
 struct RequestContext {
     format: AnswerFormat,
     has_materials: bool,
+    frontend: bool,
+    use_example: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -92,7 +94,19 @@ impl ChatState {
                 _ => AnswerFormat::Structured,
             },
             has_materials: materials.is_some_and(|text| !text.is_empty()),
+            ..RequestContext::default()
         };
+    }
+
+    pub fn set_personalization(&mut self, role: &str, summary: &str) {
+        self.context.frontend = role == "frontend";
+        let summary = summary.to_lowercase();
+        self.context.use_example = summary.contains("через конкретный пример");
+        if summary.contains("кратк") {
+            self.context.format = AnswerFormat::Brief;
+        } else if summary.contains("развёрну") || summary.contains("разверну") {
+            self.context.format = AnswerFormat::Detailed;
+        }
     }
 
     /// Returns the active attempt ID. A retry keeps the row ID but starts a new attempt.
@@ -236,7 +250,11 @@ fn demo_answer(question: &str, context: RequestContext) -> Answer {
         )
     } else {
         (
-            "Назовите свою роль, опишите решение и завершите измеримым результатом.",
+            if context.use_example {
+                "Назовите свою роль и покажите результат на конкретном примере."
+            } else {
+                "Назовите свою роль, опишите решение и завершите измеримым результатом."
+            },
             if context.has_materials {
                 "Выберите из материалов проект, в котором хорошо виден ваш личный вклад. Объясните, почему вы приняли именно это решение."
             } else if context.format == AnswerFormat::Detailed {
@@ -244,7 +262,11 @@ fn demo_answer(question: &str, context: RequestContext) -> Answer {
             } else {
                 "Начните с контекста задачи, затем объясните, почему выбрали этот подход и чем он помог команде."
             },
-            "Я разобрал причины повторных обращений, изменил шаг проверки и сократил число повторов на 20%.",
+            if context.frontend {
+                "Я упростил форму и добавил подсказки у полей. После этого пользователи реже оставляли форму незаполненной."
+            } else {
+                "Я разобрал причины повторных обращений, изменил шаг проверки и сократил число повторов на 20%."
+            },
         )
     };
     if context.format == AnswerFormat::Brief {

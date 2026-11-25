@@ -1,0 +1,395 @@
+import { ReplicaButton, ReplicaColors } from "foundation.slint";
+
+export global PersonalizationText {
+    pure callback parse-hex(string) -> color;
+}
+
+component ColorThumb inherits Rectangle {
+    in property <color> selected-color;
+
+    width: 18px;
+    height: self.width;
+    border-radius: self.width / 2;
+    border-width: 2px;
+    border-color: #ffffff;
+    background: root.selected-color;
+}
+
+component SaturationField inherits FocusScope {
+    in property <float> hue;
+    in property <float> saturation;
+    in property <float> value;
+    in property <color> selected-color;
+    callback change(float, float);
+
+    accessible-role: slider;
+    accessible-label: "Насыщенность и яркость";
+    accessible-value: "Насыщенность " + round(100 * root.saturation) + " %, яркость " + round(100 * root.value) + " %";
+
+    function choose(x: length, y: length) {
+        root.change(clamp(x / root.width, 0, 1), clamp(1 - y / root.height, 0, 1));
+    }
+
+    key-pressed(event) => {
+        if event.text == Key.LeftArrow || event.text == Key.RightArrow {
+            root.change(clamp(root.saturation + (event.text == Key.RightArrow ? 0.01 : -0.01), 0, 1), root.value);
+            return accept;
+        }
+        if event.text == Key.UpArrow || event.text == Key.DownArrow {
+            root.change(root.saturation, clamp(root.value + (event.text == Key.UpArrow ? 0.01 : -0.01), 0, 1));
+            return accept;
+        }
+        return reject;
+    }
+
+    Rectangle {
+        border-radius: 8px;
+        background: @linear-gradient(90deg, #ffffff, hsv(root.hue, 1, 1));
+    }
+    Rectangle {
+        border-radius: 8px;
+        background: @linear-gradient(180deg, #00000000, #000000);
+        border-width: root.has-focus ? 2px : 0px;
+        border-color: root.selected-color;
+    }
+    ColorThumb {
+        x: root.saturation * parent.width - self.width / 2;
+        y: (1 - root.value) * parent.height - self.height / 2;
+        selected-color: root.selected-color;
+    }
+    area := TouchArea {
+        mouse-cursor: MouseCursor.crosshair;
+        pointer-event(event) => {
+            if event.kind == PointerEventKind.down && event.button == PointerEventButton.left {
+                root.focus();
+                root.choose(area.pressed-x, area.pressed-y);
+            }
+        }
+        moved => { if area.pressed { root.choose(area.mouse-x, area.mouse-y); } }
+    }
+}
+
+component HueField inherits FocusScope {
+    in property <float> hue;
+    in property <color> selected-color;
+    callback change(float);
+
+    accessible-role: slider;
+    accessible-label: "Цветовой тон";
+    accessible-value: "" + round(root.hue) + "°";
+
+    function choose(x: length) {
+        root.change(clamp(360 * x / root.width, 0, 360));
+    }
+
+    key-pressed(event) => {
+        if event.text == Key.LeftArrow || event.text == Key.RightArrow {
+            root.change(clamp(root.hue + (event.text == Key.RightArrow ? 1 : -1), 0, 360));
+            return accept;
+        }
+        if event.text == Key.Home || event.text == Key.End {
+            root.change(event.text == Key.Home ? 0 : 360);
+            return accept;
+        }
+        return reject;
+    }
+
+    Rectangle {
+        x: 0px;
+        y: (parent.height - self.height) / 2;
+        width: parent.width;
+        height: 12px;
+        border-radius: 6px;
+        border-width: root.has-focus ? 2px : 0px;
+        border-color: root.selected-color;
+        background: @linear-gradient(90deg, #ff0000 0%, #ffff00 16.6667%, #00ff00 33.3333%,
+            #00ffff 50%, #0000ff 66.6667%, #ff00ff 83.3333%, #ff0000 100%);
+    }
+    ColorThumb {
+        x: root.hue / 360 * parent.width - self.width / 2;
+        y: (parent.height - self.height) / 2;
+        selected-color: hsv(root.hue, 0.86, 0.985);
+    }
+    area := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        pointer-event(event) => {
+            if event.kind == PointerEventKind.down && event.button == PointerEventButton.left {
+                root.focus();
+                root.choose(area.pressed-x);
+            }
+        }
+        moved => { if area.pressed { root.choose(area.mouse-x); } }
+    }
+}
+
+component AccentPreview inherits Rectangle {
+    in property <color> selected-color;
+    private property <float> accent-luminance: 0.2126 * root.linear-channel(root.selected-color.red)
+        + 0.7152 * root.linear-channel(root.selected-color.green)
+        + 0.0722 * root.linear-channel(root.selected-color.blue);
+
+    pure function linear-channel(channel: int) -> float {
+        let srgb = channel / 255;
+        return srgb <= 0.04045 ? srgb / 12.92 : pow((srgb + 0.055) / 1.055, 2.4);
+    }
+
+    border-width: 1px;
+    border-color: #333333;
+    border-radius: 14px;
+    background: ReplicaColors.control;
+
+    Text {
+        x: 20px;
+        y: 20px;
+        height: 26px;
+        width: parent.width - 40px;
+        text: "Предпросмотр";
+        font-size: 15px;
+        font-weight: 700;
+        color: ReplicaColors.strong-text;
+        vertical-alignment: center;
+    }
+    Text {
+        x: 20px;
+        y: 70px;
+        height: 23px;
+        width: parent.width - 40px;
+        text: "Собеседование";
+        font-size: 14px;
+        font-weight: 700;
+        color: root.selected-color;
+        vertical-alignment: center;
+    }
+    Rectangle {
+        x: 20px;
+        y: 98px;
+        width: 107px;
+        height: 2px;
+        border-radius: 1px;
+        background: root.selected-color;
+    }
+    Rectangle {
+        x: 20px;
+        y: 127px;
+        width: parent.width - 40px;
+        height: 40px;
+        border-radius: 8px;
+        background: root.selected-color;
+        Text {
+            text: "Начать собеседование";
+            font-size: 14px;
+            font-weight: 700;
+            color: root.accent-luminance < 0.179 ? #ffffff : ReplicaColors.background;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+    Rectangle {
+        x: 20px;
+        y: 183px;
+        width: parent.width - 40px;
+        height: 39px;
+        border-radius: 8px;
+        border-width: 1px;
+        border-color: root.selected-color;
+        background: root.selected-color.mix(#181511, 0.09);
+        Text {
+            x: 16px;
+            y: 0px;
+            height: parent.height;
+            text: "Выбрано";
+            font-size: 14px;
+            font-weight: 700;
+            color: root.selected-color;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component PersonalizationPage inherits Rectangle {
+    in property <color> accent: #fbbf24;
+    callback apply(color);
+
+    private property <color> default-accent: #fbbf24;
+    private property <color> draft-color: root.accent;
+    private property <float> hue;
+    private property <float> saturation;
+    private property <float> value;
+    private property <string> hex-text;
+    private property <bool> invalid-hex;
+    private property <bool> stacked: panel.width < 600px;
+    private property <[string]> hex-digits: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"];
+
+    min-height: root.stacked ? 689px : 390px;
+    preferred-height: root.min-height;
+
+    init => { root.set-color(root.accent, true); }
+    changed accent => { root.set-color(root.accent, true); }
+
+    pure function hex-byte(channel: int) -> string {
+        return root.hex-digits[floor(channel / 16)] + root.hex-digits[mod(channel, 16)];
+    }
+
+    pure function format-hex(color-value: color) -> string {
+        return "#" + root.hex-byte(color-value.red) + root.hex-byte(color-value.green) + root.hex-byte(color-value.blue);
+    }
+
+    function set-color(color-value: color, normalize: bool) {
+        let hsv-color = color-value.to-hsv();
+        if hsv-color.saturation > 0 { root.hue = hsv-color.hue; }
+        root.saturation = hsv-color.saturation;
+        root.value = hsv-color.value;
+        root.draft-color = color-value;
+        root.invalid-hex = false;
+        if normalize { root.hex-text = root.format-hex(color-value); }
+    }
+
+    function set-picker(hue: float, saturation: float, value: float) {
+        root.hue = hue;
+        root.saturation = saturation;
+        root.value = value;
+        root.draft-color = hsv(hue, saturation, value);
+        root.hex-text = root.format-hex(root.draft-color);
+        root.invalid-hex = false;
+    }
+
+    function apply-draft() {
+        if root.invalid-hex { return; }
+        root.hex-text = root.format-hex(root.draft-color);
+        root.apply(root.draft-color);
+    }
+
+    panel := Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: 0px;
+        width: min(parent.width, 696px);
+        height: root.min-height;
+
+        Text {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: 22px;
+            text: "Основной цвет";
+            color: ReplicaColors.strong-text;
+            font-size: 16px;
+            font-weight: 700;
+            vertical-alignment: center;
+        }
+        picker := Rectangle {
+            x: 0px;
+            y: 35px;
+            width: root.stacked ? parent.width : parent.width - 270px;
+            height: 279px;
+            border-width: 1px;
+            border-color: #333333;
+            border-radius: 14px;
+            background: ReplicaColors.control;
+
+            SaturationField {
+                x: 20px;
+                y: 21px;
+                width: parent.width - 40px;
+                height: 144px;
+                hue: root.hue;
+                saturation: root.saturation;
+                value: root.value;
+                selected-color: root.draft-color;
+                change(saturation, value) => { root.set-picker(root.hue, saturation, value); }
+            }
+            HueField {
+                x: 20px;
+                y: 179px;
+                width: parent.width - 40px;
+                height: 30px;
+                hue: root.hue;
+                selected-color: root.draft-color;
+                change(hue) => { root.set-picker(hue, root.saturation, root.value); }
+            }
+            Rectangle {
+                x: 20px;
+                y: 223px;
+                width: parent.width - 40px;
+                height: 37px;
+                border-radius: 8px;
+                border-width: entry.has-focus ? 2px : 1px;
+                border-color: root.invalid-hex ? #f87171 : entry.has-focus ? root.draft-color : #333333;
+                background: ReplicaColors.surface;
+
+                Text {
+                    x: 12px;
+                    y: 0px;
+                    height: parent.height;
+                    text: "HEX";
+                    font-size: 13px;
+                    color: ReplicaColors.muted;
+                    vertical-alignment: center;
+                }
+                entry := TextInput {
+                    x: 65px;
+                    y: 0px;
+                    width: max(0px, parent.width - 112px);
+                    height: parent.height;
+                    text <=> root.hex-text;
+                    font-size: 15px;
+                    single-line: true;
+                    color: ReplicaColors.strong-text;
+                    selection-background-color: root.draft-color.with-alpha(0.4);
+                    vertical-alignment: center;
+                    accessible-label: "HEX";
+                    edited => {
+                        let next = PersonalizationText.parse-hex(self.text);
+                        root.invalid-hex = next.alpha == 0;
+                        if !root.invalid-hex { root.set-color(next, false); }
+                    }
+                    accepted => { if !root.invalid-hex { root.hex-text = root.format-hex(root.draft-color); } }
+                    key-pressed(event) => {
+                        if event.modifiers.control && !event.modifiers.shift && !event.modifiers.alt && self.preedit-text == "" {
+                            let key = event.text.to-lowercase();
+                            if key == "ф" { self.select-all(); return accept; }
+                            if key == "с" { self.copy(); return accept; }
+                            if key == "м" { self.paste(); return accept; }
+                            if key == "ч" { self.cut(); return accept; }
+                        }
+                        return reject;
+                    }
+                }
+                Rectangle {
+                    x: parent.width - 38px;
+                    y: 8px;
+                    width: 22px;
+                    height: 22px;
+                    border-radius: 5px;
+                    background: root.draft-color;
+                }
+            }
+        }
+        AccentPreview {
+            x: root.stacked ? 0px : picker.width + 20px;
+            y: root.stacked ? 334px : picker.y;
+            width: root.stacked ? parent.width : 250px;
+            height: picker.height;
+            selected-color: root.draft-color;
+        }
+        HorizontalLayout {
+            x: 0px;
+            y: parent.height - 40px;
+            width: parent.width;
+            height: 40px;
+            spacing: 8px;
+            ReplicaButton {
+                button-width: 142px;
+                caption: "Сбросить цвет";
+                clicked => { root.set-color(root.default-accent, true); }
+            }
+            Rectangle { horizontal-stretch: 1; }
+            ReplicaButton {
+                button-width: 132px;
+                caption: "Применить";
+                variant: "primary";
+                enabled: !root.invalid-hex;
+                clicked => { root.apply-draft(); }
+            }
+        }
+    }
+}

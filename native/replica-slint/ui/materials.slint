@@ -91,7 +91,7 @@ export component MaterialsPage inherits Rectangle {
                         width: 40px;
                         height: 40px;
                         border-radius: 8px;
-                        background: #fbbf2414;
+                        background: ProfileColors.amber.with-alpha(0.08);
                         Image {
                             source: @image-url("assets/profile/file.svg");
                             width: 17px;
@@ -276,7 +276,7 @@ export component MaterialEditor inherits FocusScope {
                             text <=> root.question-draft;
                             single-line: false; wrap: word-wrap;
                             font-size: 14px; color: ProfileColors.text;
-                            selection-background-color: #fbbf2466;
+                            selection-background-color: ProfileColors.amber.with-alpha(0.4);
                             accessible-label: "Вопрос";
                         }
                     }
@@ -297,7 +297,7 @@ export component MaterialEditor inherits FocusScope {
                             text <=> root.topic-draft;
                             single-line: true; vertical-alignment: center;
                             font-size: 14px; color: ProfileColors.text;
-                            selection-background-color: #fbbf2466;
+                            selection-background-color: ProfileColors.amber.with-alpha(0.4);
                             accessible-label: "Тема";
                         }
                     }
